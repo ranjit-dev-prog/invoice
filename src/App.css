@@ -446,17 +446,17 @@ select.field-input {
 }
 
 .inv-company-name {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--black);
-  letter-spacing: 0.02em;
-  margin-bottom: 6px;
+  letter-spacing: 0.01em;
+  margin-bottom: 5px;
 }
 
 .inv-meta-row {
-  font-size: 12px;
-  color: var(--gray-dark);
-  line-height: 1.5;
+  font-size: 11px;
+  color: #999;
+  line-height: 1.4;
 }
 
 .meta-label {
@@ -492,26 +492,26 @@ select.field-input {
 
 .inv-title {
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   text-align: center;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   color: var(--black);
-  border: 2px solid #000;
+  border: none;
   border-radius: 0;
-  padding: 12px;
-  margin-bottom: 28px;
+  padding: 0;
+  margin-bottom: 20px;
 }
 
 /* ── BILLED ROW ── */
 .inv-billed-row {
   display: flex;
   justify-content: space-between;
-  gap: 24px;
-  border: 2px solid #000;
+  gap: 32px;
+  border: none;
   border-radius: 0;
-  padding: 20px 22px;
-  margin-bottom: 28px;
+  padding: 16px 0;
+  margin-bottom: 20px;
 }
 
 .inv-billed-section {
@@ -519,12 +519,12 @@ select.field-input {
 }
 
 .inv-field-label {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--gray-light);
-  margin-bottom: 4px;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  color: #999;
+  margin-bottom: 3px;
 }
 
 .inv-field-label.mt-sm {
@@ -532,10 +532,11 @@ select.field-input {
 }
 
 .inv-billed-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--black);
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
+  margin-bottom: 8px;
 }
 
 .inv-billed-addr {
@@ -547,10 +548,10 @@ select.field-input {
 
 .inv-meta-right {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px 24px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px 28px;
   align-content: start;
-  min-width: 260px;
+  min-width: 320px;
 }
 
 .inv-meta-col {
@@ -562,31 +563,33 @@ select.field-input {
 .inv-field-value {
   font-size: 13px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--black);
 }
 
 /* ── ITEMS TABLE ── */
 .inv-table {
   width: 100%;
   border-collapse: collapse;
-  border: 2px solid #000;
+  border: none;
   border-radius: 0;
   overflow: hidden;
   margin-bottom: 0;
+  margin-top: 12px;
 }
 
 .inv-table thead tr {
-  background: #f5f5f5;
-  border-bottom: 2px solid #000;
+  background: transparent;
+  border-bottom: 1px solid #999;
+  border-top: 1px solid #999;
 }
 
 .inv-table thead th {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--black);
-  padding: 12px 18px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  color: #666;
+  padding: 10px 18px;
   text-align: left;
 }
 
@@ -595,16 +598,16 @@ select.field-input {
 }
 
 .inv-tr {
-  border-bottom: 1.5px solid #e8e8e8;
+  border-bottom: 1px solid #eee;
 }
 
 .inv-tr:last-child {
-  border-bottom: 2px solid #000;
+  border-bottom: 1px solid #999;
 }
 
 .inv-table tbody td {
-  padding: 16px 18px;
-  font-size: 13px;
+  padding: 12px 18px;
+  font-size: 12px;
   color: var(--ink);
 }
 
@@ -626,17 +629,18 @@ select.field-input {
 .inv-totals {
   display: flex;
   justify-content: flex-end;
-  border: 2px solid #000;
-  border-top: 2px solid #000;
+  border: none;
+  border-top: 1px solid #999;
   border-radius: 0;
-  padding: 18px 18px 14px;
-  background: #fafafa;
-  margin-bottom: 28px;
+  padding: 16px 0;
+  background: transparent;
+  margin-bottom: 24px;
+  margin-top: 12px;
 }
 
 .totals-table {
-  min-width: 280px;
-  max-width: 380px;
+  min-width: 300px;
+  max-width: 350px;
   width: 100%;
 }
 
@@ -644,43 +648,44 @@ select.field-input {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 5px 0;
-  font-size: 13px;
+  padding: 6px 0;
+  font-size: 12px;
   color: var(--ink);
 }
 
 .total-label {
-  color: var(--gray-dark);
-  font-size: 13px;
+  color: #333;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .total-rate {
-  color: var(--gray-mid);
-  font-size: 12px;
-  margin-left: 6px;
+  color: #666;
+  font-size: 11px;
+  margin-left: 4px;
 }
 
 .total-value {
-  font-weight: 600;
-  font-size: 13px;
+  font-weight: 500;
+  font-size: 12px;
+  text-align: right;
 }
 
 .total-bold .total-label,
 .total-bold .total-value {
   font-weight: 700;
   color: var(--black);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .total-grand .total-label {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--black);
 }
 
 .total-grand .total-value {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--black);
 }
@@ -693,17 +698,17 @@ select.field-input {
 
 .totals-divider {
   height: 1px;
-  background: #e0e0e0;
-  margin: 8px 0;
+  background: #999;
+  margin: 6px 0;
 }
 
 .inv-words {
-  font-size: 12px;
-  color: var(--gray-dark);
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #eeeeee;
-  line-height: 1.6;
+  font-size: 11px;
+  color: #333;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: none;
+  line-height: 1.5;
 }
 
 /* ── FOOTER ── */

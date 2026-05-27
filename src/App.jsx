@@ -128,10 +128,10 @@ export default function App() {
               className={`tab-btn ${activeTab === t ? "active" : ""}`}
               onClick={() => setActiveTab(t)}
             >
-              {t === "company" && <span className="tab-icon">🏢</span>}
-              {t === "client" && <span className="tab-icon">👤</span>}
-              {t === "items" && <span className="tab-icon">📋</span>}
-              {t === "taxes" && <span className="tab-icon">💰</span>}
+              {t === "company" && <span className="tab-icon"></span>}
+              {t === "client" && <span className="tab-icon"></span>}
+              {t === "items" && <span className="tab-icon"></span>}
+              {t === "taxes" && <span className="tab-icon"></span>}
               <span>{t.charAt(0).toUpperCase() + t.slice(1)}</span>
             </button>
           ))}
@@ -239,7 +239,7 @@ export default function App() {
 
         <div className="sidebar-footer">
           <button className="print-btn" onClick={handlePrint}>
-            🖨 Print / Download PDF
+            Print / Download PDF
           </button>
         </div>
       </aside>
@@ -297,12 +297,6 @@ export default function App() {
                     <div className="inv-field-label">PAN</div>
                     <div className="inv-field-value">{form.partyPAN}</div>
                   </div>
-                  {form.partyGSTIN && (
-                    <div className="inv-meta-col">
-                      <div className="inv-field-label">GSTIN</div>
-                      <div className="inv-field-value">{form.partyGSTIN}</div>
-                    </div>
-                  )}
                   <div className="inv-meta-col">
                     <div className="inv-field-label">Invoice Number</div>
                     <div className="inv-field-value">{form.invoiceNumber}</div>
@@ -315,6 +309,12 @@ export default function App() {
                     <div className="inv-field-label">State Code</div>
                     <div className="inv-field-value">{form.stateCode}</div>
                   </div>
+                  {form.partyGSTIN && (
+                    <div className="inv-meta-col">
+                      <div className="inv-field-label">GSTIN</div>
+                      <div className="inv-field-value">{form.partyGSTIN}</div>
+                    </div>
+                  )}
                 </div>
               </div>
 
