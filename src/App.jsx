@@ -1,428 +1,369 @@
-import React, { useState, useRef, useMemo, useCallback, useEffect } from "react";
-import html2pdf from "html2pdf.js";
+import { useState, useRef } from "react";
 import "./App.css";
 
-const TAX_RATE = 0.09;
-const INITIAL_FORM_DATA = {
-  clientName: "RANJIT MANNALAL SAROJ",
-  address:
-    "ROOM-A/104 PRABHAT CHAWL,JAGDISH SHETTY ROAD,, GANESH NAGAR,KANDIVALI WEST,, MUMBAI,MAHARASHTRA,400067, MUMBAI, Maharashtra, India, 400067",
-  phone: "+91 9867470618",
-  pan: "QJBPS4663F",
-  date: "2026-04-09",
+const defaultForm = {
+  // Company Info
+  companyName: "1 FINANCE PRIVATE LIMITED",
+  companyGSTIN: "27AABCZ8402H1Z8",
+  companyPAN: "AABCZ8402H",
+  companyCIN: "U66190GJ2021PTC126723",
+  companyAddress: "Unit No. 1101 & 1102, 11th Floor, B – Wing, Lotus Corporate Park, Goregaon (E), Mumbai-400 063.",
+  companyWebsite: "https://1finance.co.in/",
+  companyRegNo: "SEBI RIA Registration No: INA000017523",
+
+  // Invoice Details
   invoiceNumber: "1F/26-27/F/42",
+  invoiceDate: "2026-04-09",
+
+  // Client Info
+  billedTo: "RANJIT MANNALAL SAROJ",
+  partyAddress: "ROOM-A/104 PRABHAT CHAWL, JAGDISH SHETTY ROAD,, GANESH NAGAR, KANDIVALI WEST,, MUMBAI, MAHARASHTRA, 400067",
+  partyPhone: "+91 9867470618",
+  partyPAN: "QJBPS4663F",
   placeOfSupply: "Maharashtra",
   stateCode: "27",
-  discount: 2118,
-  items: [{ desc: "Advisory Fees", sac: "997156", amount: 2118 }]
+
+  // Line Items
+  items: [
+    { description: "Advisory Fees", sacCode: "997156", amount: "2118.00" },
+  ],
+
+  // Taxes & Discount
+  discount: "2118.00",
+  sgstRate: "9",
+  cgstRate: "9",
 };
 
-const parseNumber = (value, fallback = 0) => {
-  const number = typeof value === "string" ? parseFloat(value) : Number(value);
-  return Number.isFinite(number) ? number : fallback;
-};
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
 
-const formatCurrency = (value) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value || 0);
+function calcTotals(items, discount, sgstRate, cgstRate) {
+  const total = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const disc = parseFloat(discount) || 0;
+  const netTotal = Math.max(total - disc, 0);
+  const sgst = netTotal * ((parseFloat(sgstRate) || 0) / 100);
+  const cgst = netTotal * ((parseFloat(cgstRate) || 0) / 100);
+  const grandTotal = netTotal + sgst + cgst;
+  return { total, disc, netTotal, sgst, cgst, grandTotal };
+}
 
-const toWords = (number) => {
-  const amount = parseNumber(number);
-  if (amount === 0) return "Rupees Zero";
-
-  const ones = [
-    "",
-    "One",
-    "Two",
-    "Three",
-    "Four",
-    "Five",
-    "Six",
-    "Seven",
-    "Eight",
-    "Nine",
-    "Ten",
-    "Eleven",
-    "Twelve",
-    "Thirteen",
-    "Fourteen",
-    "Fifteen",
-    "Sixteen",
-    "Seventeen",
-    "Eighteen",
-    "Nineteen"
-  ];
+function numberToWords(num) {
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen",
+    "Eighteen", "Nineteen"];
   const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  if (num === 0) return "Zero";
+  if (num < 20) return ones[num];
+  if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 ? " " + ones[num % 10] : "");
+  if (num < 1000) return ones[Math.floor(num / 100)] + " Hundred" + (num % 100 ? " " + numberToWords(num % 100) : "");
+  if (num < 100000) return numberToWords(Math.floor(num / 1000)) + " Thousand" + (num % 1000 ? " " + numberToWords(num % 1000) : "");
+  if (num < 10000000) return numberToWords(Math.floor(num / 100000)) + " Lakh" + (num % 100000 ? " " + numberToWords(num % 100000) : "");
+  return numberToWords(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 ? " " + numberToWords(num % 10000000) : "");
+}
 
-  const convert = (n) => {
-    if (n < 20) return ones[n];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
-    if (n < 1000)
-      return (
-        ones[Math.floor(n / 100)] +
-        " Hundred" +
-        (n % 100 ? " " + convert(n % 100) : "")
-      );
-    if (n < 100000)
-      return (
-        convert(Math.floor(n / 1000)) +
-        " Thousand" +
-        (n % 1000 ? " " + convert(n % 1000) : "")
-      );
-    if (n < 10000000)
-      return (
-        convert(Math.floor(n / 100000)) +
-        " Lakh" +
-        (n % 100000 ? " " + convert(n % 100000) : "")
-      );
-
-    return (
-      convert(Math.floor(n / 10000000)) +
-      " Crore" +
-      (n % 10000000 ? " " + convert(n % 10000000) : "")
-    );
-  };
-
-  const rupees = Math.floor(amount);
-  const paise = Math.round((amount - rupees) * 100);
-  return "Rupees " + convert(rupees) + (paise > 0 ? " and " + convert(paise) + " Paise" : "");
-};
-
-const createFileHandler = (setter) => (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  setter(URL.createObjectURL(file));
-};
-
-const Field = ({ label, children }) => (
-  <div className="form-group">
-    <label>{label}</label>
-    {children}
-  </div>
-);
+function amountInWords(amount) {
+  const rounded = Math.round(amount * 100) / 100;
+  const intPart = Math.floor(rounded);
+  const decPart = Math.round((rounded - intPart) * 100);
+  let words = numberToWords(intPart) + " Rupees";
+  if (decPart > 0) words += " and " + numberToWords(decPart) + " Paise";
+  return words + " only.";
+}
 
 export default function App() {
-  const invoiceRef = useRef(null);
-  const [bgTemplate, setBgTemplate] = useState(null);
-  const [logoUrl, setLogoUrl] = useState(null);
-  const [docType, setDocType] = useState("Tax Invoice");
-  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
+  const [form, setForm] = useState(defaultForm);
+  const [activeTab, setActiveTab] = useState("company");
+  const printRef = useRef();
 
-  useEffect(() => {
-    if (!bgTemplate) return undefined;
-    return () => URL.revokeObjectURL(bgTemplate);
-  }, [bgTemplate]);
+  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  useEffect(() => {
-    if (!logoUrl) return undefined;
-    return () => URL.revokeObjectURL(logoUrl);
-  }, [logoUrl]);
+  const setItem = (idx, key, val) => {
+    const items = [...form.items];
+    items[idx] = { ...items[idx], [key]: val };
+    set("items", items);
+  };
 
-  const handleTemplateUpload = useCallback(createFileHandler(setBgTemplate), []);
-  const handleLogoUpload = useCallback(createFileHandler(setLogoUrl), []);
+  const addItem = () => set("items", [...form.items, { description: "", sacCode: "", amount: "" }]);
+  const removeItem = (idx) => set("items", form.items.filter((_, i) => i !== idx));
 
-  const updateField = useCallback((field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  }, []);
+  const { total, disc, netTotal, sgst, cgst, grandTotal } = calcTotals(
+    form.items, form.discount, form.sgstRate, form.cgstRate
+  );
 
-  const updateItem = useCallback((index, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      items: prev.items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [field]: value } : item
-      )
-    }));
-  }, []);
-
-  const addItem = useCallback(() => {
-    setFormData((prev) => ({
-      ...prev,
-      items: [...prev.items, { desc: "", sac: "", amount: 0 }]
-    }));
-  }, []);
-
-  const removeItem = useCallback((index) => {
-    setFormData((prev) => ({
-      ...prev,
-      items: prev.items.filter((_, itemIndex) => itemIndex !== index)
-    }));
-  }, []);
-
-  const isTaxable = docType === "Tax Invoice";
-  const invoiceNumberLabel = docType === "Credit Note" ? "Credit Note Number" : "Invoice Number";
-
-  const totals = useMemo(() => {
-    const subtotal = formData.items.reduce((sum, item) => sum + parseNumber(item.amount), 0);
-    const discount = parseNumber(formData.discount);
-    const net = Math.max(0, subtotal - discount);
-    const tax = net * TAX_RATE;
-    return {
-      subtotal,
-      discount,
-      net,
-      sgst: tax,
-      cgst: tax,
-      grand: isTaxable ? net + tax * 2 : net
-    };
-  }, [formData.items, formData.discount, isTaxable]);
-
-  const downloadPDF = useCallback(() => {
-    if (!invoiceRef.current) return;
-    html2pdf()
-      .set({
-        margin: 0,
-        filename: `${docType.replace(/\s+/g, "_")}.pdf`,
-        image: { type: "jpeg", quality: 1 },
-        html2canvas: { scale: 2, useCORS: true, allowTaint: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-      })
-      .from(invoiceRef.current)
-      .save();
-  }, [docType]);
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
-    <div className="app-container">
-      <aside className="editor-panel">
-        <header className="editor-header">
-          <div>
-            <h2>✏️ Invoice Editor</h2>
-            <select className="doc-type-select" value={docType} onChange={(e) => setDocType(e.target.value)}>
-              <option value="Tax Invoice">📄 Tax Invoice</option>
-              <option value="Locker Invoice">🔒 Locker Invoice</option>
-              <option value="Credit Note">🔙 Credit Note</option>
-            </select>
+    <div className="app-root">
+      {/* ── SIDEBAR ── */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <span className="logo-box">1</span>
+            <div>
+              <div className="sidebar-brand">1Finance</div>
+              <div className="sidebar-sub">Invoice Generator</div>
+            </div>
           </div>
-          <label className="upload-btn">
-            📥 Upload Template
-            <input type="file" accept=".pdf,image/*" onChange={handleTemplateUpload} />
-          </label>
-        </header>
-
-        <div className="editor-body">
-          <Field label="Company Logo">
-            <input type="file" accept="image/*" onChange={handleLogoUpload} />
-          </Field>
-
-          <Field label={invoiceNumberLabel}>
-            <input
-              value={formData.invoiceNumber}
-              onChange={(e) => updateField("invoiceNumber", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Date">
-            <input
-              type="date"
-              value={formData.date}
-              onChange={(e) => updateField("date", e.target.value)}
-            />
-          </Field>
-
-          <hr className="divider" />
-
-          <Field label="Client Name">
-            <input
-              value={formData.clientName}
-              onChange={(e) => updateField("clientName", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Address">
-            <textarea
-              rows={4}
-              value={formData.address}
-              onChange={(e) => updateField("address", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Phone">
-            <input
-              value={formData.phone}
-              onChange={(e) => updateField("phone", e.target.value)}
-            />
-          </Field>
-
-          <Field label="PAN">
-            <input
-              value={formData.pan}
-              onChange={(e) => updateField("pan", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Place of Supply">
-            <input
-              value={formData.placeOfSupply}
-              onChange={(e) => updateField("placeOfSupply", e.target.value)}
-            />
-          </Field>
-
-          <Field label="State Code">
-            <input
-              value={formData.stateCode}
-              onChange={(e) => updateField("stateCode", e.target.value)}
-            />
-          </Field>
-
-          <div className="items-section">
-            <label className="section-label">LINE ITEMS</label>
-            {formData.items.map((item, index) => (
-              <div className="item-row" key={index}>
-                <input
-                  className="desc"
-                  placeholder="Description"
-                  value={item.desc}
-                  onChange={(e) => updateItem(index, "desc", e.target.value)}
-                />
-                <input
-                  className="sac"
-                  placeholder="SAC"
-                  value={item.sac}
-                  onChange={(e) => updateItem(index, "sac", e.target.value)}
-                />
-                <input
-                  className="amount"
-                  type="number"
-                  step="0.01"
-                  value={item.amount}
-                  onChange={(e) => updateItem(index, "amount", parseNumber(e.target.value))}
-                />
-                <button type="button" className="btn-remove" onClick={() => removeItem(index)}>
-                  ×
-                </button>
-              </div>
-            ))}
-            <button type="button" className="btn-add" onClick={addItem}>
-              + Add Item
-            </button>
-          </div>
-
-          <Field label="Discount (₹)">
-            <input
-              type="number"
-              step="0.01"
-              value={formData.discount}
-              onChange={(e) => updateField("discount", parseNumber(e.target.value))}
-            />
-          </Field>
         </div>
 
-        <footer className="editor-footer">
-          <button type="button" className="btn btn-primary" onClick={downloadPDF}>
-            ⬇️ Download PDF
-          </button>
-        </footer>
-      </aside>
+        <nav className="sidebar-tabs">
+          {["company", "client", "items", "taxes"].map((t) => (
+            <button
+              key={t}
+              className={`tab-btn ${activeTab === t ? "active" : ""}`}
+              onClick={() => setActiveTab(t)}
+            >
+              {t === "company" && <span className="tab-icon">🏢</span>}
+              {t === "client" && <span className="tab-icon">👤</span>}
+              {t === "items" && <span className="tab-icon">📋</span>}
+              {t === "taxes" && <span className="tab-icon">💰</span>}
+              <span>{t.charAt(0).toUpperCase() + t.slice(1)}</span>
+            </button>
+          ))}
+        </nav>
 
-      <main className="preview-panel">
-        <div ref={invoiceRef} className="invoice-page">
-          {bgTemplate && (
-            <div className="template-bg" style={{ backgroundImage: `url(${bgTemplate})` }} />
+        <div className="sidebar-body">
+          {/* COMPANY TAB */}
+          {activeTab === "company" && (
+            <div className="form-section">
+              <h3 className="section-title">Company Details</h3>
+              <Field label="Company Name" value={form.companyName} onChange={(v) => set("companyName", v)} />
+              <Field label="GSTIN" value={form.companyGSTIN} onChange={(v) => set("companyGSTIN", v)} />
+              <Field label="PAN" value={form.companyPAN} onChange={(v) => set("companyPAN", v)} />
+              <Field label="CIN" value={form.companyCIN} onChange={(v) => set("companyCIN", v)} />
+              <Field label="Address" value={form.companyAddress} onChange={(v) => set("companyAddress", v)} textarea />
+              <Field label="Website" value={form.companyWebsite} onChange={(v) => set("companyWebsite", v)} />
+              <Field label="Registration No." value={form.companyRegNo} onChange={(v) => set("companyRegNo", v)} />
+
+              <h3 className="section-title mt">Invoice Details</h3>
+              <Field label="Invoice Number" value={form.invoiceNumber} onChange={(v) => set("invoiceNumber", v)} />
+              <Field label="Invoice Date" value={form.invoiceDate} onChange={(v) => set("invoiceDate", v)} type="date" />
+            </div>
           )}
 
-          <div className="invoice-content">
-            {logoUrl && <img src={logoUrl} alt="Company logo" className="company-logo" />}
-            <h1 className="inv-title">{docType}</h1>
+          {/* CLIENT TAB */}
+          {activeTab === "client" && (
+            <div className="form-section">
+              <h3 className="section-title">Client Details</h3>
+              <Field label="Billed To" value={form.billedTo} onChange={(v) => set("billedTo", v)} />
+              <Field label="Party Address" value={form.partyAddress} onChange={(v) => set("partyAddress", v)} textarea />
+              <Field label="Phone" value={form.partyPhone} onChange={(v) => set("partyPhone", v)} />
+              <Field label="PAN" value={form.partyPAN} onChange={(v) => set("partyPAN", v)} />
+              <Field label="Place of Supply" value={form.placeOfSupply} onChange={(v) => set("placeOfSupply", v)} />
+              <Field label="State Code" value={form.stateCode} onChange={(v) => set("stateCode", v)} />
+            </div>
+          )}
 
-            <div className="inv-header">
-              <div className="inv-left">
-                <span className="inv-label">Billed to</span>
-                <span className="inv-value client-name">{formData.clientName}</span>
-                <span className="inv-label">Party address</span>
-                <span className="inv-value address">{formData.address}</span>
-                <div className="inv-row">
-                  <span className="inv-label">Phone:</span> <span>{formData.phone}</span>
+          {/* ITEMS TAB */}
+          {activeTab === "items" && (
+            <div className="form-section">
+              <h3 className="section-title">Line Items</h3>
+              {form.items.map((item, idx) => (
+                <div className="item-card" key={idx}>
+                  <div className="item-card-header">
+                    <span className="item-num">Item {idx + 1}</span>
+                    {form.items.length > 1 && (
+                      <button className="remove-btn" onClick={() => removeItem(idx)}>✕</button>
+                    )}
+                  </div>
+                  <Field label="Description" value={item.description} onChange={(v) => setItem(idx, "description", v)} />
+                  <Field label="SAC Code" value={item.sacCode} onChange={(v) => setItem(idx, "sacCode", v)} />
+                  <Field label="Amount (₹)" value={item.amount} onChange={(v) => setItem(idx, "amount", v)} type="number" />
                 </div>
-                <div className="inv-row">
-                  <span className="inv-label">PAN:</span> <span>{formData.pan}</span>
-                </div>
-              </div>
+              ))}
+              <button className="add-item-btn" onClick={addItem}>+ Add Item</button>
+            </div>
+          )}
 
-              <div className="inv-right">
-                <div className="inv-row">
-                  <span className="inv-label">Date</span>
-                  <span>{formData.date}</span>
-                </div>
-                <div className="inv-row">
-                  <span className="inv-label">{invoiceNumberLabel}</span>
-                  <span>{formData.invoiceNumber}</span>
-                </div>
-                <div className="inv-row">
-                  <span className="inv-label">Place of supply</span>
-                  <span>{formData.placeOfSupply}</span>
-                </div>
-                <div className="inv-row">
-                  <span className="inv-label">State Code</span>
-                  <span>{formData.stateCode}</span>
-                </div>
+          {/* TAXES TAB */}
+          {activeTab === "taxes" && (
+            <div className="form-section">
+              <h3 className="section-title">Discounts & Taxes</h3>
+              <Field label="Discount (₹)" value={form.discount} onChange={(v) => set("discount", v)} type="number" />
+              <Field label="SGST (%)" value={form.sgstRate} onChange={(v) => set("sgstRate", v)} type="number" />
+              <Field label="CGST (%)" value={form.cgstRate} onChange={(v) => set("cgstRate", v)} type="number" />
+
+              <div className="summary-box">
+                <SummaryRow label="Subtotal" value={`₹ ${total.toFixed(2)}`} />
+                <SummaryRow label="Discount" value={`- ₹ ${disc.toFixed(2)}`} />
+                <SummaryRow label="Net Total" value={`₹ ${netTotal.toFixed(2)}`} />
+                <SummaryRow label={`SGST @ ${form.sgstRate}%`} value={`₹ ${sgst.toFixed(2)}`} />
+                <SummaryRow label={`CGST @ ${form.cgstRate}%`} value={`₹ ${cgst.toFixed(2)}`} />
+                <div className="summary-divider" />
+                <SummaryRow label="Grand Total" value={`₹ ${grandTotal.toFixed(2)}`} bold />
               </div>
             </div>
+          )}
+        </div>
 
-            <table className="inv-table">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th className="col-sac">SAC Code</th>
-                  <th className="col-amount">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {formData.items.map((item, index) => (
-                  <tr key={index}>
-                    <td>{item.desc}</td>
-                    <td className="col-sac">{item.sac}</td>
-                    <td className="col-amount">{formatCurrency(item.amount)}</td>
+        <div className="sidebar-footer">
+          <button className="print-btn" onClick={handlePrint}>
+            🖨 Print / Download PDF
+          </button>
+        </div>
+      </aside>
+
+      {/* ── PREVIEW ── */}
+      <main className="preview-area">
+        <div className="preview-topbar">
+          <span className="preview-label">Live Preview</span>
+          <span className="preview-hint">Changes reflect instantly</span>
+        </div>
+
+        <div className="invoice-wrapper" ref={printRef}>
+          <div className="invoice-page">
+            {/* Header */}
+            <header className="inv-header">
+              <div className="inv-brand">
+                <div className="inv-logo-wrap">
+                  <div className="inv-logo-box">1</div>
+                  <div className="inv-logo-text">Finance</div>
+                </div>
+                <div className="inv-company-meta">
+                  <div className="inv-company-name">{form.companyName}</div>
+                  <div className="inv-meta-row"><span className="meta-label">GSTIN</span> {form.companyGSTIN}</div>
+                  <div className="inv-meta-row"><span className="meta-label">PAN</span> {form.companyPAN}</div>
+                  <div className="inv-meta-row"><span className="meta-label">CIN</span> {form.companyCIN}</div>
+                </div>
+              </div>
+              <div className="inv-address-block">
+                <div className="inv-addr-text">{form.companyAddress}</div>
+                <div className="inv-addr-web">{form.companyWebsite}</div>
+              </div>
+            </header>
+
+            {/* Invoice Body */}
+            <div className="inv-body">
+              <div className="inv-title">Tax Invoice</div>
+
+              {/* Billed To + Date */}
+              <div className="inv-billed-row">
+                <div className="inv-billed-section">
+                  <div className="inv-field-label">Billed to</div>
+                  <div className="inv-billed-name">{form.billedTo}</div>
+
+                  <div className="inv-field-label mt-sm">Party address</div>
+                  <div className="inv-billed-addr">{form.partyAddress}</div>
+                  <div className="inv-billed-addr">{form.partyPhone}</div>
+                </div>
+
+                <div className="inv-meta-right">
+                  <div className="inv-meta-col">
+                    <div className="inv-field-label">Date</div>
+                    <div className="inv-field-value">{formatDate(form.invoiceDate)}</div>
+                  </div>
+                  <div className="inv-meta-col">
+                    <div className="inv-field-label">PAN</div>
+                    <div className="inv-field-value">{form.partyPAN}</div>
+                  </div>
+                  <div className="inv-meta-col">
+                    <div className="inv-field-label">Invoice Number</div>
+                    <div className="inv-field-value">{form.invoiceNumber}</div>
+                  </div>
+                  <div className="inv-meta-col">
+                    <div className="inv-field-label">Place of supply</div>
+                    <div className="inv-field-value">{form.placeOfSupply}</div>
+                  </div>
+                  <div className="inv-meta-col">
+                    <div className="inv-field-label">State Code</div>
+                    <div className="inv-field-value">{form.stateCode}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Line Items Table */}
+              <table className="inv-table">
+                <thead>
+                  <tr>
+                    <th className="th-desc">Description</th>
+                    <th className="th-sac">SAC Code</th>
+                    <th className="th-amt">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {form.items.map((item, idx) => (
+                    <tr key={idx} className="inv-tr">
+                      <td className="td-desc">{item.description}</td>
+                      <td className="td-sac">{item.sacCode}</td>
+                      <td className="td-amt">₹ {parseFloat(item.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-            <div className="inv-totals">
-              <div className="tot-row">
-                <span>Total</span>
-                <span>{formatCurrency(totals.subtotal)}</span>
-              </div>
-              <div className="tot-row">
-                <span>Discount</span>
-                <span>- {formatCurrency(totals.discount)}</span>
-              </div>
-              <div className="tot-row">
-                <span>Net Total</span>
-                <span>{formatCurrency(totals.net)}</span>
-              </div>
-              {isTaxable && (
-                <>
-                  <div className="tot-row">
-                    <span>Add: SGST@ 9%</span>
-                    <span>{formatCurrency(totals.sgst)}</span>
+              {/* Totals */}
+              <div className="inv-totals">
+                <div className="totals-table">
+                  <TotalRow label="Total" value={`₹ ${total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} size="lg" />
+                  <TotalRow label="Discount" value={`-₹ ${disc.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} />
+                  <TotalRow label="Net Total" value={netTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} bold />
+                  <TotalRow label={`Add: SGST @`} rate={`${form.sgstRate}%`} value={`₹${sgst.toFixed(2)}`} />
+                  <TotalRow label={`Add: CGST @`} rate={`${form.cgstRate}%`} value={`₹${cgst.toFixed(2)}`} />
+                  <div className="totals-divider" />
+                  <TotalRow
+                    label="Grand Total"
+                    value={`₹ ${grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+                    grand
+                  />
+                  <div className="inv-words">
+                    <strong>Total Amount :</strong> {grandTotal === 0 ? "Rupees Zero only." : amountInWords(grandTotal)}
                   </div>
-                  <div className="tot-row">
-                    <span>Add: CGST@ 9%</span>
-                    <span>{formatCurrency(totals.cgst)}</span>
-                  </div>
-                </>
-              )}
-              <div className="tot-row grand">
-                <span>Grand Total</span>
-                <span>{formatCurrency(totals.grand)}</span>
+                </div>
               </div>
+
+              {/* Footer */}
+              <div className="inv-footer-reg">{form.companyRegNo}</div>
+              <div className="inv-footer-note">This is a Computer Generated Invoice. No signature required.</div>
             </div>
-
-            <div className="amount-words">Total Amount: {toWords(totals.grand)} only.</div>
-            <footer className="inv-footer">
-              <strong>1 FINANCE PRIVATE LIMITED</strong>
-              GSTIN 27AABCZ8402H1Z8 PAN AABCZ8402H CIN U66190GJ2021PTC126723<br />
-              Unit No. 1101& 1102, 11th Floor, B – Wing, Lotus Corporate Park, Goregaon(E), Mumbai-400 063.<br />
-              https://1finance.co.in/<br />
-              SEBI RIA Registration No: INA000017523<br />
-              <span className="disclaimer">This is a Computer Generated {docType}. No signature required.</span>
-            </footer>
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, textarea, type = "text" }) {
+  return (
+    <div className="field-group">
+      <label className="field-label">{label}</label>
+      {textarea ? (
+        <textarea
+          className="field-input field-textarea"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={3}
+        />
+      ) : (
+        <input
+          className="field-input"
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, bold }) {
+  return (
+    <div className={`summary-row ${bold ? "summary-bold" : ""}`}>
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function TotalRow({ label, value, rate, bold, grand, size }) {
+  return (
+    <div className={`total-row ${bold ? "total-bold" : ""} ${grand ? "total-grand" : ""} ${size === "lg" ? "total-lg" : ""}`}>
+      <span className="total-label">{label} {rate && <span className="total-rate">{rate}</span>}</span>
+      <span className="total-value">{value}</span>
     </div>
   );
 }
