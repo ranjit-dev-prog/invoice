@@ -301,11 +301,6 @@ export default function App() {
           <span className="preview-label">Live Preview</span>
           <span className="preview-hint">Changes reflect instantly</span>
         </div>
-        {uploadedInvoiceUrl && (
-          <div className="invoice-upload-note">
-            Uploaded PDF: <a href={uploadedInvoiceUrl} target="_blank" rel="noreferrer">{uploadedInvoiceName}</a>
-          </div>
-        )}
 
         <div className="invoice-wrapper" ref={printRef}>
           <div className="invoice-page">
@@ -365,7 +360,7 @@ export default function App() {
                     <div className="inv-field-label">State Code</div>
                     <div className="inv-field-value">{form.stateCode}</div>
                   </div>
-                  {form.gstEnabled && form.partyGSTIN && (
+                  {form.partyGSTIN && (
                     <div className="inv-meta-col">
                       <div className="inv-field-label">GSTIN</div>
                       <div className="inv-field-value">{form.partyGSTIN}</div>
@@ -398,9 +393,7 @@ export default function App() {
               <div className="inv-totals">
                 <div className="totals-table">
                   <TotalRow label="Total" value={`₹ ${total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} size="lg" />
-                  {form.discountEnabled && (
-                    <TotalRow label="Discount" value={`-₹ ${disc.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} />
-                  )}
+                  <TotalRow label="Discount" value={`-₹ ${disc.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} />
                   <TotalRow label="Net Total" value={netTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} bold />
                   {form.gstType === "igst" ? (
                     <TotalRow label={`Add: IGST @`} rate={`${form.igstRate}%`} value={`₹${igst.toFixed(2)}`} />
