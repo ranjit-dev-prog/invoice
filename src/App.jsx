@@ -19,7 +19,7 @@ const defaultForm = {
   billedTo: "RANJIT MANNALAL SAROJ",
   partyAddress: "ROOM-A/104 PRABHAT CHAWL, JAGDISH SHETTY ROAD,, GANESH NAGAR, KANDIVALI WEST,, MUMBAI, MAHARASHTRA, 400067",
   partyPhone: "+91 9867470618",
-  partyPAN: "QJBPS4663F",
+  partyPAN: "QJBPS4663F", 
   partyGSTIN: "",
   placeOfSupply: "Maharashtra",
   stateCode: "27",
@@ -393,8 +393,8 @@ export default function App() {
               <div className="inv-totals">
                 <div className="totals-table">
                   <TotalRow label="Total" value={`₹ ${total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} size="lg" />
-                  <TotalRow label="Discount" value={`-₹ ${disc.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} />
-                  <TotalRow label="Net Total" value={netTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} bold />
+                  <TotalRow label="Discount" value={`- ₹ ${disc.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} />
+                  <TotalRow label="Net Total" value={`₹ ${netTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} bold />
                   {form.gstType === "igst" ? (
                     <TotalRow
                       label={`Add: IGST @`}
