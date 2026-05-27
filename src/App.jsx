@@ -396,11 +396,23 @@ export default function App() {
                   <TotalRow label="Discount" value={`-₹ ${disc.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} />
                   <TotalRow label="Net Total" value={netTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} bold />
                   {form.gstType === "igst" ? (
-                    <TotalRow label={`Add: IGST @`} rate={`${form.igstRate}%`} value={`₹${igst.toFixed(2)}`} />
+                    <TotalRow
+                      label={`Add: IGST @`}
+                      rate={`${form.igstRate}%`}
+                      value={`₹ ${igst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+                    />
                   ) : (
                     <>
-                      <TotalRow label={`Add: SGST @`} rate={`${form.sgstRate}%`} value={`₹${sgst.toFixed(2)}`} />
-                      <TotalRow label={`Add: CGST @`} rate={`${form.cgstRate}%`} value={`₹${cgst.toFixed(2)}`} />
+                      <TotalRow
+                        label={`Add: SGST @`}
+                        rate={`${form.sgstRate}%`}
+                        value={`₹ ${sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+                      />
+                      <TotalRow
+                        label={`Add: CGST @`}
+                        rate={`${form.cgstRate}%`}
+                        value={`₹ ${cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+                      />
                     </>
                   )}
                   <div className="totals-divider" />
