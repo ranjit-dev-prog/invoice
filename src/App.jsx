@@ -30,7 +30,9 @@ const defaultForm = {
   ],
 
   // Taxes & Discount
-  discount: "2118.00",
+  discountEnabled: false,
+  discount: "0.00",
+  gstEnabled: false,
   gstType: "sgst_cgst",
   igstRate: "18",
   sgstRate: "9",
@@ -86,9 +88,21 @@ function amountInWords(amount) {
 export default function App() {
   const [form, setForm] = useState(defaultForm);
   const [activeTab, setActiveTab] = useState("company");
+  const [uploadedInvoiceName, setUploadedInvoiceName] = useState("");
+  const [uploadedInvoiceUrl, setUploadedInvoiceUrl] = useState(null);
   const printRef = useRef();
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleInvoiceUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadedInvoiceName(file.name);
+    setUploadedInvoiceUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  };
 
   const setItem = (idx, key, val) => {
     const items = [...form.items];
@@ -99,8 +113,9 @@ export default function App() {
   const addItem = () => set("items", [...form.items, { description: "", sacCode: "", amount: "" }]);
   const removeItem = (idx) => set("items", form.items.filter((_, i) => i !== idx));
 
+  const discountValue = form.discountEnabled ? form.discount : "0";
   const { total, disc, netTotal, igst, sgst, cgst, grandTotal } = calcTotals(
-    form.items, form.discount, form.gstType, form.igstRate, form.sgstRate, form.cgstRate
+    form.items, discountValue, form.gstType, form.igstRate, form.sgstRate, form.cgstRate
   );
 
   const handlePrint = () => {
@@ -153,6 +168,20 @@ export default function App() {
               <h3 className="section-title mt">Invoice Details</h3>
               <Field label="Invoice Number" value={form.invoiceNumber} onChange={(v) => set("invoiceNumber", v)} />
               <Field label="Invoice Date" value={form.invoiceDate} onChange={(v) => set("invoiceDate", v)} type="date" />
+
+              <h3 className="section-title mt">Upload Invoice PDF</h3>
+              <div className="field-group">
+                <label className="field-label">Invoice PDF</label>
+                <input
+                  className="field-input file-input"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleInvoiceUpload}
+                />
+              </div>
+              {uploadedInvoiceName && (
+                <div className="upload-info">Uploaded: {uploadedInvoiceName}</div>
+              )}
             </div>
           )}
 
@@ -164,7 +193,18 @@ export default function App() {
               <Field label="Party Address" value={form.partyAddress} onChange={(v) => set("partyAddress", v)} textarea />
               <Field label="Phone" value={form.partyPhone} onChange={(v) => set("partyPhone", v)} />
               <Field label="PAN" value={form.partyPAN} onChange={(v) => set("partyPAN", v)} />
-              <Field label="GSTIN" value={form.partyGSTIN} onChange={(v) => set("partyGSTIN", v)} />
+              <div className="field-group toggle-group">
+                <button
+                  type="button"
+                  className={`toggle-btn ${form.gstEnabled ? "active" : ""}`}
+                  onClick={() => set("gstEnabled", !form.gstEnabled)}
+                >
+                  {form.gstEnabled ? "GSTIN enabled" : "Enable GSTIN"}
+                </button>
+              </div>
+              {form.gstEnabled && (
+                <Field label="GSTIN" value={form.partyGSTIN} onChange={(v) => set("partyGSTIN", v)} />
+              )}
               <Field label="Place of Supply" value={form.placeOfSupply} onChange={(v) => set("placeOfSupply", v)} />
               <Field label="State Code" value={form.stateCode} onChange={(v) => set("stateCode", v)} />
             </div>
@@ -195,8 +235,19 @@ export default function App() {
           {activeTab === "taxes" && (
             <div className="form-section">
               <h3 className="section-title">Discounts & Taxes</h3>
-              <Field label="Discount (₹)" value={form.discount} onChange={(v) => set("discount", v)} type="number" />
-              
+              <div className="field-group toggle-group">
+                <button
+                  type="button"
+                  className={`toggle-btn ${form.discountEnabled ? "active" : ""}`}
+                  onClick={() => set("discountEnabled", !form.discountEnabled)}
+                >
+                  {form.discountEnabled ? "Discount enabled" : "Enable discount"}
+                </button>
+              </div>
+              {form.discountEnabled && (
+                <Field label="Discount (₹)" value={form.discount} onChange={(v) => set("discount", v)} type="number" />
+              )}
+
               <div className="field-group">
                 <label className="field-label">GST Type</label>
                 <select 
