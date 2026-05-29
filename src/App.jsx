@@ -1,55 +1,19 @@
-import { useState, useRef } from "react";
+﻿import { useState } from "react";
 import "./App.css";
 
-const defaultForm = {
-  // Company Info
-  companyName: "1 FINANCE PRIVATE LIMITED",
-  companyGSTIN: "27AABCZ8402H1Z8",
-  companyPAN: "AABCZ8402H",
-  companyCIN: "U66190GJ2021PTC126723",
-  companyAddress: "Unit No. 1101 & 1102, 11th Floor, B – Wing, Lotus Corporate Park, Goregaon (E), Mumbai-400 063.",
-  companyWebsite: "https://1finance.co.in/",
-  companyRegNo: "SEBI RIA Registration No: INA000017523",
-
-  // Invoice Details
-  invoiceNumber: "1F/26-27/F/42",
-  invoiceDate: "2026-04-09",
-
-  // Client Info
-  billedTo: "RANJIT MANNALAL SAROJ",
-  partyAddress: "ROOM-A/104 PRABHAT CHAWL, JAGDISH SHETTY ROAD,, GANESH NAGAR, KANDIVALI WEST,, MUMBAI, MAHARASHTRA, 400067",
-  partyPhone: "+91 9867470618",
-  partyPAN: "QJBPS4663F", 
-  partyGSTIN: "",
-  placeOfSupply: "Maharashtra",
-  stateCode: "27",
-
-  // Line Items
-  items: [
-    { description: "Advisory Fees", sacCode: "997156", amount: "2118.00" },
-  ],
-
-  // Taxes & Discount
-  discountEnabled: false,
-  discount: "0.00",
-  gstEnabled: false,
-  gstType: "sgst_cgst",
-  igstRate: "18",
-  sgstRate: "9",
-  cgstRate: "9",
-};
-
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
 function formatDate(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function calcTotals(items, discount, gstType, igstRate, sgstRate, cgstRate) {
-  const total = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-  const disc = parseFloat(discount) || 0;
+function calcTotals(items, discountEnabled, discount, gstType, igstRate, sgstRate, cgstRate) {
+  const total   = items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+  const disc    = discountEnabled ? (parseFloat(discount) || 0) : 0;
   const netTotal = Math.max(total - disc, 0);
-  
   let igst = 0, sgst = 0, cgst = 0;
   if (gstType === "igst") {
     igst = netTotal * ((parseFloat(igstRate) || 0) / 100);
@@ -57,424 +21,747 @@ function calcTotals(items, discount, gstType, igstRate, sgstRate, cgstRate) {
     sgst = netTotal * ((parseFloat(sgstRate) || 0) / 100);
     cgst = netTotal * ((parseFloat(cgstRate) || 0) / 100);
   }
-  
   const grandTotal = netTotal + igst + sgst + cgst;
   return { total, disc, netTotal, igst, sgst, cgst, grandTotal };
 }
 
-function numberToWords(num) {
-  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
-    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen",
-    "Eighteen", "Nineteen"];
-  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-  if (num === 0) return "Zero";
-  if (num < 20) return ones[num];
-  if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 ? " " + ones[num % 10] : "");
-  if (num < 1000) return ones[Math.floor(num / 100)] + " Hundred" + (num % 100 ? " " + numberToWords(num % 100) : "");
-  if (num < 100000) return numberToWords(Math.floor(num / 1000)) + " Thousand" + (num % 1000 ? " " + numberToWords(num % 1000) : "");
-  if (num < 10000000) return numberToWords(Math.floor(num / 100000)) + " Lakh" + (num % 100000 ? " " + numberToWords(num % 100000) : "");
-  return numberToWords(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 ? " " + numberToWords(num % 10000000) : "");
+const ONES = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+const TENS = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+function n2w(n) {
+  if (n === 0) return "Zero";
+  if (n < 20)  return ONES[n];
+  if (n < 100) return TENS[Math.floor(n/10)] + (n%10 ? " "+ONES[n%10] : "");
+  if (n < 1000) return ONES[Math.floor(n/100)] + " Hundred" + (n%100 ? " "+n2w(n%100) : "");
+  if (n < 100000) return n2w(Math.floor(n/1000)) + " Thousand" + (n%1000 ? " "+n2w(n%1000) : "");
+  if (n < 10000000) return n2w(Math.floor(n/100000)) + " Lakh" + (n%100000 ? " "+n2w(n%100000) : "");
+  return n2w(Math.floor(n/10000000)) + " Crore" + (n%10000000 ? " "+n2w(n%10000000) : "");
+}
+function amtWords(amt) {
+  const r = Math.round(amt * 100) / 100;
+  const ip = Math.floor(r), dp = Math.round((r - ip) * 100);
+  let w = n2w(ip) + " Rupees";
+  if (dp > 0) w += " and " + n2w(dp) + " Paise";
+  return w + " only.";
 }
 
-function amountInWords(amount) {
-  const rounded = Math.round(amount * 100) / 100;
-  const intPart = Math.floor(rounded);
-  const decPart = Math.round((rounded - intPart) * 100);
-  let words = numberToWords(intPart) + " Rupees";
-  if (decPart > 0) words += " and " + numberToWords(decPart) + " Paise";
-  return words + " only.";
+function fmt(num) {
+  return num.toLocaleString("en-IN", { minimumFractionDigits: 2 });
 }
 
-export default function App() {
-  const [form, setForm] = useState(defaultForm);
-  const [activeTab, setActiveTab] = useState("company");
-  const [uploadedInvoiceName, setUploadedInvoiceName] = useState("");
-  const [uploadedInvoiceUrl, setUploadedInvoiceUrl] = useState(null);
-  const printRef = useRef();
+// ─────────────────────────────────────────────
+// DEFAULT STATES
+// ─────────────────────────────────────────────
+const defaultCompany = {
+  name:    "1 FINANCE PRIVATE LIMITED",
+  gstin:   "27AABCZ8402H1Z8",
+  pan:     "AABCZ8402H",
+  cin:     "U66190GJ2021PTC126723",
+  address: "Unit No. 1101 & 1102, 11th Floor, B – Wing, Lotus Corporate Park, Goregaon (E), Mumbai-400 063.",
+  website: "https://1finance.co.in/",
+  regNo:   "SEBI RIA Registration No: INA000017523",
+};
 
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+const defaultTaxInvoice = {
+  invoiceNumber:  "1F/26-27/183",
+  invoiceDate:    "2026-05-06",
+  billedTo:       "MEGHANA SRINIVAS KULKARNI",
+  partyAddress:   "A 701 GOLDEN PETALS KARVE NGR NR, TREE HOUSE HIGHSCHL KOTHRUD CITY, NEAR TREE HOUSE HIGHSCHOOL PUNE 411052",
+  partyPhone:     "+91 9405438320",
+  partyPAN:       "ABKPK8842M",
+  partyGSTIN:     "",
+  gstinEnabled:   false,
+  placeOfSupply:  "Maharashtra",
+  stateCode:      "27",
+  items: [
+    { description: "Advisory Fees", sacCode: "997156", amount: "75000.00",
+      note: "(An amount of Rs. 56250/- plus applicable taxes shall be payable at three months, six months, and nine months from the Execution Date.)" }
+  ],
+  discountEnabled: false,
+  discount:        "0.00",
+  gstType:         "sgst_cgst",
+  igstRate:        "18",
+  sgstRate:        "9",
+  cgstRate:        "9",
+};
 
-  const handleInvoiceUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setUploadedInvoiceName(file.name);
-    setUploadedInvoiceUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
-  };
+const defaultLockerInvoice = {
+  companyName:    "1 FINANCE PVT LTD",
+  companyGSTIN:   "36AABCZ8402H1Z9",
+  companyAddress: "Ground Floor, Unit No GB (Northern Side Of North Side) Avk Sri Harsh - Icon, Serilingampally, Nanakramguda, Hyderabad, Gachibowli, Rangareddy, Telangana-500032",
+  invoiceNumber:  "1F/25-26/LCHY/16",
+  invoiceDate:    "2026-03-11",
+  billedTo:       "ALUGANI HARISH",
+  partyAddress:   "1 169, HANUMAN TEMPLE, RAJENDRA NAGAR BUDVEL, RAJENDRANAGAR, K V RANGAREDDY HYDERABAD, TELANGANA - 500030 PIN Code: 500030",
+  partyPhone:     "",
+  partyPAN:       "AZCPA2666D",
+  partyGSTIN:     "",
+  gstinEnabled:   false,
+  placeOfSupply:  "TELANGANA",
+  stateCode:      "36",
+  lockerNo:       "M027",
+  lockerFrom:     "2026-03-11",
+  lockerTo:       "2027-03-10",
+  sacCode:        "997329",
+  amount:         "2500",
+  discountEnabled: true,
+  discount:        "2500",
+  gstType:         "sgst_cgst",
+  sgstRate:        "9",
+  cgstRate:        "9",
+  interestNote:    "Interest @2% per month will apply on delayed payment",
+};
 
-  const setItem = (idx, key, val) => {
-    const items = [...form.items];
-    items[idx] = { ...items[idx], [key]: val };
-    set("items", items);
-  };
+const defaultCreditNote = {
+  invoiceNumber:  "1F/26-27/CN/4",
+  invoiceDate:    "2026-05-26",
+  billedTo:       "GOURI SHANKAR BEHERA",
+  partyAddress:   "KAMALAKANTA BEHERA, BAISHINGA, MAYURBHANJ, , ODISHA, , INDIA , BAISHINGA , Odisha , 757028",
+  partyPhone:     "+91 8305027096",
+  partyPAN:       "BJDPB3336D",
+  placeOfSupply:  "ODISHA",
+  stateCode:      "21",
+  againstInvoice: "1F/26-27/169",
+  items: [
+    { description: "Advisory Fees", sacCode: "997156", amount: "5000.00", note: "" }
+  ],
+  gstType:  "igst",
+  igstRate: "18",
+  sgstRate: "9",
+  cgstRate: "9",
+};
 
-  const addItem = () => set("items", [...form.items, { description: "", sacCode: "", amount: "" }]);
-  const removeItem = (idx) => set("items", form.items.filter((_, i) => i !== idx));
-
-  const discountValue = form.discountEnabled ? form.discount : "0";
-  const { total, disc, netTotal, igst, sgst, cgst, grandTotal } = calcTotals(
-    form.items, discountValue, form.gstType, form.igstRate, form.sgstRate, form.cgstRate
-  );
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  return (
-    <div className="app-root">
-      {/* ── SIDEBAR ── */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <span className="logo-box">1</span>
-            <div>
-              <div className="sidebar-brand">1Finance</div>
-              <div className="sidebar-sub">Invoice Generator</div>
-            </div>
-          </div>
-        </div>
-
-        <nav className="sidebar-tabs">
-          {["company", "client", "items", "taxes"].map((t) => (
-            <button
-              key={t}
-              className={`tab-btn ${activeTab === t ? "active" : ""}`}
-              onClick={() => setActiveTab(t)}
-            >
-              {t === "company" && <span className="tab-icon"></span>}
-              {t === "client" && <span className="tab-icon"></span>}
-              {t === "items" && <span className="tab-icon"></span>}
-              {t === "taxes" && <span className="tab-icon"></span>}
-              <span>{t.charAt(0).toUpperCase() + t.slice(1)}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="sidebar-body">
-          {/* COMPANY TAB */}
-          {activeTab === "company" && (
-            <div className="form-section">
-              <h3 className="section-title">Company Details</h3>
-              <Field label="Company Name" value={form.companyName} onChange={(v) => set("companyName", v)} />
-              <Field label="GSTIN" value={form.companyGSTIN} onChange={(v) => set("companyGSTIN", v)} />
-              <Field label="PAN" value={form.companyPAN} onChange={(v) => set("companyPAN", v)} />
-              <Field label="CIN" value={form.companyCIN} onChange={(v) => set("companyCIN", v)} />
-              <Field label="Address" value={form.companyAddress} onChange={(v) => set("companyAddress", v)} textarea />
-              <Field label="Website" value={form.companyWebsite} onChange={(v) => set("companyWebsite", v)} />
-              <Field label="Registration No." value={form.companyRegNo} onChange={(v) => set("companyRegNo", v)} />
-
-              <h3 className="section-title mt">Invoice Details</h3>
-              <Field label="Invoice Number" value={form.invoiceNumber} onChange={(v) => set("invoiceNumber", v)} />
-              <Field label="Invoice Date" value={form.invoiceDate} onChange={(v) => set("invoiceDate", v)} type="date" />
-
-              <h3 className="section-title mt">Upload Invoice PDF</h3>
-              <div className="field-group">
-                <label className="field-label">Invoice PDF</label>
-                <input
-                  className="field-input file-input"
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handleInvoiceUpload}
-                />
-              </div>
-              {uploadedInvoiceName && (
-                <div className="upload-info">Uploaded: {uploadedInvoiceName}</div>
-              )}
-            </div>
-          )}
-
-          {/* CLIENT TAB */}
-          {activeTab === "client" && (
-            <div className="form-section">
-              <h3 className="section-title">Client Details</h3>
-              <Field label="Billed To" value={form.billedTo} onChange={(v) => set("billedTo", v)} />
-              <Field label="Party Address" value={form.partyAddress} onChange={(v) => set("partyAddress", v)} textarea />
-              <Field label="Phone" value={form.partyPhone} onChange={(v) => set("partyPhone", v)} />
-              <Field label="PAN" value={form.partyPAN} onChange={(v) => set("partyPAN", v)} />
-              <div className="field-group toggle-group">
-                <button
-                  type="button"
-                  className={`toggle-btn ${form.gstEnabled ? "active" : ""}`}
-                  onClick={() => set("gstEnabled", !form.gstEnabled)}
-                >
-                  {form.gstEnabled ? "GSTIN enabled" : "Enable GSTIN"}
-                </button>
-              </div>
-              {form.gstEnabled && (
-                <Field label="GSTIN" value={form.partyGSTIN} onChange={(v) => set("partyGSTIN", v)} />
-              )}
-              <Field label="Place of Supply" value={form.placeOfSupply} onChange={(v) => set("placeOfSupply", v)} />
-              <Field label="State Code" value={form.stateCode} onChange={(v) => set("stateCode", v)} />
-            </div>
-          )}
-
-          {/* ITEMS TAB */}
-          {activeTab === "items" && (
-            <div className="form-section">
-              <h3 className="section-title">Line Items</h3>
-              {form.items.map((item, idx) => (
-                <div className="item-card" key={idx}>
-                  <div className="item-card-header">
-                    <span className="item-num">Item {idx + 1}</span>
-                    {form.items.length > 1 && (
-                      <button className="remove-btn" onClick={() => removeItem(idx)}>✕</button>
-                    )}
-                  </div>
-                  <Field label="Description" value={item.description} onChange={(v) => setItem(idx, "description", v)} />
-                  <Field label="SAC Code" value={item.sacCode} onChange={(v) => setItem(idx, "sacCode", v)} />
-                  <Field label="Amount (₹)" value={item.amount} onChange={(v) => setItem(idx, "amount", v)} type="number" />
-                </div>
-              ))}
-              <button className="add-item-btn" onClick={addItem}>+ Add Item</button>
-            </div>
-          )}
-
-          {/* TAXES TAB */}
-          {activeTab === "taxes" && (
-            <div className="form-section">
-              <h3 className="section-title">Discounts & Taxes</h3>
-              <div className="field-group toggle-group">
-                <button
-                  type="button"
-                  className={`toggle-btn ${form.discountEnabled ? "active" : ""}`}
-                  onClick={() => set("discountEnabled", !form.discountEnabled)}
-                >
-                  {form.discountEnabled ? "Discount enabled" : "Enable discount"}
-                </button>
-              </div>
-              {form.discountEnabled && (
-                <Field label="Discount (₹)" value={form.discount} onChange={(v) => set("discount", v)} type="number" />
-              )}
-
-              <div className="field-group">
-                <label className="field-label">GST Type</label>
-                <select 
-                  className="field-input" 
-                  value={form.gstType} 
-                  onChange={(e) => set("gstType", e.target.value)}
-                >
-                  <option value="sgst_cgst">SGST + CGST (Intra-state)</option>
-                  <option value="igst">IGST (Inter-state)</option>
-                </select>
-              </div>
-
-              {form.gstType === "igst" ? (
-                <Field label="IGST (%)" value={form.igstRate} onChange={(v) => set("igstRate", v)} type="number" />
-              ) : (
-                <>
-                  <Field label="SGST (%)" value={form.sgstRate} onChange={(v) => set("sgstRate", v)} type="number" />
-                  <Field label="CGST (%)" value={form.cgstRate} onChange={(v) => set("cgstRate", v)} type="number" />
-                </>
-              )}
-
-              <div className="summary-box">
-                <SummaryRow label="Subtotal" value={`₹ ${total.toFixed(2)}`} />
-                <SummaryRow label="Discount" value={`- ₹ ${disc.toFixed(2)}`} />
-                <SummaryRow label="Net Total" value={`₹ ${netTotal.toFixed(2)}`} />
-                {form.gstType === "igst" ? (
-                  <SummaryRow label={`IGST @ ${form.igstRate}%`} value={`₹ ${igst.toFixed(2)}`} />
-                ) : (
-                  <>
-                    <SummaryRow label={`SGST @ ${form.sgstRate}%`} value={`₹ ${sgst.toFixed(2)}`} />
-                    <SummaryRow label={`CGST @ ${form.cgstRate}%`} value={`₹ ${cgst.toFixed(2)}`} />
-                  </>
-                )}
-                <div className="summary-divider" />
-                <SummaryRow label="Grand Total" value={`₹ ${grandTotal.toFixed(2)}`} bold />
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="sidebar-footer">
-          <button className="print-btn" onClick={handlePrint}>
-            Print / Download PDF
-          </button>
-        </div>
-      </aside>
-
-      {/* ── PREVIEW ── */}
-      <main className="preview-area">
-        <div className="preview-topbar">
-          <span className="preview-label">Live Preview</span>
-          <span className="preview-hint">Changes reflect instantly</span>
-        </div>
-
-        <div className="invoice-wrapper" ref={printRef}>
-          <div className="invoice-page">
-            {/* Header */}
-            <header className="inv-header">
-              <div className="inv-brand">
-                <div className="inv-logo-wrap">
-                  <div className="inv-logo-box">1</div>
-                  <div className="inv-logo-text">Finance</div>
-                </div>
-                <div className="inv-company-meta">
-                  <div className="inv-company-name">{form.companyName}</div>
-                  <div className="inv-meta-row"><span className="meta-label">GSTIN</span> {form.companyGSTIN}</div>
-                  <div className="inv-meta-row"><span className="meta-label">PAN</span> {form.companyPAN}</div>
-                  <div className="inv-meta-row"><span className="meta-label">CIN</span> {form.companyCIN}</div>
-                </div>
-              </div>
-              <div className="inv-address-block">
-                <div className="inv-addr-text">{form.companyAddress}</div>
-                <div className="inv-addr-web">{form.companyWebsite}</div>
-              </div>
-            </header>
-
-            {/* Invoice Body */}
-            <div className="inv-body">
-              <div className="inv-title">Tax Invoice</div>
-
-              {/* Billed To + Date */}
-              <div className="inv-billed-row">
-                <div className="inv-billed-section">
-                  <div className="inv-field-label">Billed to</div>
-                  <div className="inv-billed-name">{form.billedTo}</div>
-
-                  <div className="inv-field-label mt-sm">Party address</div>
-                  <div className="inv-billed-addr">{form.partyAddress}</div>
-                  <div className="inv-billed-addr">{form.partyPhone}</div>
-                </div>
-
-                <div className="inv-meta-right">
-                  <div className="inv-meta-col">
-                    <div className="inv-field-label">Date</div>
-                    <div className="inv-field-value">{formatDate(form.invoiceDate)}</div>
-                  </div>
-                  <div className="inv-meta-col">
-                    <div className="inv-field-label">PAN</div>
-                    <div className="inv-field-value">{form.partyPAN}</div>
-                  </div>
-                  <div className="inv-meta-col">
-                    <div className="inv-field-label">Invoice Number</div>
-                    <div className="inv-field-value">{form.invoiceNumber}</div>
-                  </div>
-                  <div className="inv-meta-col">
-                    <div className="inv-field-label">Place of supply</div>
-                    <div className="inv-field-value">{form.placeOfSupply}</div>
-                  </div>
-                  <div className="inv-meta-col">
-                    <div className="inv-field-label">State Code</div>
-                    <div className="inv-field-value">{form.stateCode}</div>
-                  </div>
-                  {form.partyGSTIN && (
-                    <div className="inv-meta-col">
-                      <div className="inv-field-label">GSTIN</div>
-                      <div className="inv-field-value">{form.partyGSTIN}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Line Items Table */}
-              <table className="inv-table">
-                <thead>
-                  <tr>
-                    <th className="th-desc">Description</th>
-                    <th className="th-sac">SAC Code</th>
-                    <th className="th-amt">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.items.map((item, idx) => (
-                    <tr key={idx} className="inv-tr">
-                      <td className="td-desc">{item.description}</td>
-                      <td className="td-sac">{item.sacCode}</td>
-                      <td className="td-amt">₹ {parseFloat(item.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Totals */}
-              <div className="inv-totals">
-                <div className="totals-table">
-                  <TotalRow label="Total" value={`₹ ${total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} size="lg" />
-                  <TotalRow label="Discount" value={`- ₹ ${disc.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} />
-                  <TotalRow label="Net Total" value={`₹ ${netTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`} bold />
-                  {form.gstType === "igst" ? (
-                    <TotalRow
-                      label={`Add: IGST @`}
-                      rate={`${form.igstRate}%`}
-                      value={`₹ ${igst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
-                    />
-                  ) : (
-                    <>
-                      <TotalRow
-                        label={`Add: SGST @`}
-                        rate={`${form.sgstRate}%`}
-                        value={`₹ ${sgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
-                      />
-                      <TotalRow
-                        label={`Add: CGST @`}
-                        rate={`${form.cgstRate}%`}
-                        value={`₹ ${cgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
-                      />
-                    </>
-                  )}
-                  <div className="totals-divider" />
-                  <TotalRow
-                    label="Grand Total"
-                    value={`₹ ${grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
-                    grand
-                  />
-                  <div className="inv-words">
-                    <strong>Total Amount :</strong> {grandTotal === 0 ? "Rupees Zero only." : amountInWords(grandTotal)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="inv-footer-reg">{form.companyRegNo}</div>
-              <div className="inv-footer-note">This is a Computer Generated Invoice. No signature required.</div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
+// ─────────────────────────────────────────────
+// SMALL UI COMPONENTS
+// ─────────────────────────────────────────────
 function Field({ label, value, onChange, textarea, type = "text" }) {
   return (
     <div className="field-group">
       <label className="field-label">{label}</label>
-      {textarea ? (
-        <textarea
-          className="field-input field-textarea"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          rows={3}
-        />
-      ) : (
-        <input
-          className="field-input"
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
+      {textarea
+        ? <textarea className="field-input field-textarea" value={value} rows={3} onChange={e => onChange(e.target.value)} />
+        : <input className="field-input" type={type} value={value} onChange={e => onChange(e.target.value)} />
+      }
     </div>
   );
 }
 
-function SummaryRow({ label, value, bold }) {
+function Toggle({ label, on, onToggle }) {
   return (
-    <div className={`summary-row ${bold ? "summary-bold" : ""}`}>
-      <span>{label}</span>
-      <span>{value}</span>
+    <div className="field-group">
+      <button type="button" className={`toggle-btn${on ? " on" : ""}`} onClick={onToggle}>
+        {on ? `✓ ${label}` : `+ Enable ${label}`}
+      </button>
     </div>
   );
 }
 
-function TotalRow({ label, value, rate, bold, grand, size }) {
+function SumRow({ label, value, bold }) {
+  return <div className={`sum-row${bold ? " bold" : ""}`}><span>{label}</span><span>{value}</span></div>;
+}
+
+// ─────────────────────────────────────────────
+// INVOICE LOGO
+// ─────────────────────────────────────────────
+function InvLogo() {
   return (
-    <div className={`total-row ${bold ? "total-bold" : ""} ${grand ? "total-grand" : ""} ${size === "lg" ? "total-lg" : ""}`}>
-      <span className="total-label">{label} {rate && <span className="total-rate">{rate}</span>}</span>
-      <span className="total-value">{value}</span>
+    <div className="inv-logo-icon">
+      <span className="inv-logo-num">1</span>
+      <span className="inv-logo-text">Finance</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// TAX INVOICE PREVIEW
+// ─────────────────────────────────────────────
+function TaxInvoicePreview({ co, f }) {
+  const { total, disc, netTotal, igst, sgst, cgst, grandTotal } =
+    calcTotals(f.items, f.discountEnabled, f.discount, f.gstType, f.igstRate, f.sgstRate, f.cgstRate);
+
+  return (
+    <div className="invoice-page">
+      <div className="inv-header">
+        <div className="inv-brand">
+          <InvLogo />
+          <div>
+            <div className="inv-co-name">{co.name}</div>
+            <div className="inv-co-meta">
+              <p><strong>GSTIN</strong>{co.gstin}</p>
+              <p><strong>PAN</strong>{co.pan}</p>
+              <p><strong>CIN</strong>{co.cin}</p>
+            </div>
+          </div>
+        </div>
+        <div className="inv-addr-block">
+          {co.address}<br />
+          <a href={co.website}>{co.website}</a>
+        </div>
+      </div>
+
+      <div className="inv-body">
+        <div className="inv-title">Tax Invoice</div>
+
+        <div className="inv-billed-row">
+          <div>
+            <div className="fl">Billed to</div>
+            <div className="fv">{f.billedTo}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div className="fl">Date</div>
+            <div className="fv">{formatDate(f.invoiceDate)}</div>
+          </div>
+        </div>
+
+        <div className="party-grid">
+          <div>
+            <div className="pml">Party address</div>
+            <div className="pmv">{f.partyAddress}<br />{f.partyPhone}</div>
+          </div>
+          <div>
+            <div className="pml">PAN</div><div className="pmv">{f.partyPAN}</div>
+            {f.gstinEnabled && f.partyGSTIN && <><div className="pml">GSTIN</div><div className="pmv">{f.partyGSTIN}</div></>}
+            <div className="pml">Place of supply</div><div className="pmv">{f.placeOfSupply}</div>
+          </div>
+          <div className="text-right">
+            <div className="pml">Invoice Number</div><div className="pmv">{f.invoiceNumber}</div>
+            <div className="pml">State Code</div><div className="pmv">{f.stateCode}</div>
+          </div>
+        </div>
+
+        <table className="inv-table">
+          <thead><tr><th>Description</th><th className="c">SAC Code</th><th className="r">Amount</th></tr></thead>
+          <tbody>
+            {f.items.map((item, i) => (
+              <tr key={i}>
+                <td><strong>{item.description}</strong>{item.note && <div className="desc-note">{item.note}</div>}</td>
+                <td className="c">{item.sacCode}</td>
+                <td className="r">₹ {fmt(parseFloat(item.amount) || 0)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="totals-wrap">
+          <div className="totals-block">
+            <div className="t-row sep"><span className="lbl">Total</span><span className="amt">₹ {fmt(total)}</span></div>
+            {f.discountEnabled && <div className="t-row"><span className="lbl">Discount</span><span className="amt">- ₹ {fmt(disc)}</span></div>}
+            <div className="t-row head"><span>Net Total</span><span>₹ {fmt(netTotal)}</span></div>
+            {f.gstType === "igst"
+              ? <div className="tax-line"><span>Add: IGST @</span><span>{f.igstRate}%</span><span>₹ {fmt(igst)}</span></div>
+              : <>
+                  <div className="tax-line"><span>Add: CGST @</span><span>{f.cgstRate}%</span><span>{fmt(cgst)}</span></div>
+                  <div className="tax-line"><span>Add: SGST @</span><span>{f.sgstRate}%</span><span>{fmt(sgst)}</span></div>
+                </>
+            }
+            <div className="t-row grand"><span>Grand Total</span><span className="amt">₹ {fmt(grandTotal)}</span></div>
+            <div className="words-row">
+              <strong>Total Amount (₹ - In Words):</strong> {grandTotal === 0 ? "Rupees Zero only." : amtWords(grandTotal)}
+            </div>
+          </div>
+        </div>
+
+        <div className="inv-footer">{co.regNo}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// LOCKER INVOICE PREVIEW
+// ─────────────────────────────────────────────
+function LockerInvoicePreview({ co, f }) {
+  const items = [{ description: `Locker Charges (Locker No:-${f.lockerNo})`, sacCode: f.sacCode, amount: f.amount, note: `(From ${f.lockerFrom} to ${f.lockerTo})` }];
+  const { total, disc, netTotal, sgst, cgst, grandTotal } =
+    calcTotals(items, f.discountEnabled, f.discount, f.gstType, "18", f.sgstRate, f.cgstRate);
+
+  return (
+    <div className="invoice-page">
+      <div className="inv-header">
+        <div className="inv-brand">
+          <InvLogo />
+          <div>
+            <div className="inv-co-name">{f.companyName || co.name}</div>
+            <div className="inv-co-meta">
+              <p><strong>GSTIN</strong>{f.companyGSTIN || co.gstin}</p>
+              <p><strong>PAN</strong>{co.pan}</p>
+              <p><strong>CIN</strong>{co.cin}</p>
+            </div>
+          </div>
+        </div>
+        <div className="inv-addr-block">{f.companyAddress || co.address}</div>
+      </div>
+
+      <div className="inv-body">
+        <div className="inv-title">Tax Invoice</div>
+
+        <div className="inv-billed-row">
+          <div><div className="fl">Billed to</div><div className="fv">{f.billedTo}</div></div>
+          <div style={{ textAlign: "right" }}><div className="fl">Date</div><div className="fv">{formatDate(f.invoiceDate)}</div></div>
+        </div>
+
+        <div className="party-grid">
+          <div>
+            <div className="pml">Address</div>
+            <div className="pmv">{f.partyAddress}</div>
+          </div>
+          <div>
+            <div className="pml">PAN</div><div className="pmv">{f.partyPAN}</div>
+            <div className="pml">Place of supply</div><div className="pmv">{f.placeOfSupply}</div>
+          </div>
+          <div className="text-right">
+            <div className="pml">Invoice Number</div><div className="pmv">{f.invoiceNumber}</div>
+            <div className="pml">State Code</div><div className="pmv">{f.stateCode}</div>
+          </div>
+        </div>
+
+        <table className="inv-table">
+          <thead><tr><th>Description</th><th className="c">SAC Code</th><th className="r">Amount</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Locker Charges (Locker No:-{f.lockerNo})</strong><div className="desc-note">(From {f.lockerFrom} to {f.lockerTo})</div></td>
+              <td className="c">{f.sacCode}</td>
+              <td className="r">₹{fmt(parseFloat(f.amount) || 0)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="totals-wrap">
+          <div className="totals-block">
+            <div className="t-row sep" style={{ fontSize: 14, fontWeight: 600 }}><span>Total</span><span>₹{fmt(total)}</span></div>
+            {f.discountEnabled && <div className="t-row"><span className="lbl">Discount</span><span className="amt">-₹{fmt(disc)}</span></div>}
+            <div className="t-row"><span className="lbl">Net Total</span><span className="amt">{fmt(netTotal)}</span></div>
+            <div className="tax-line"><span>CGST</span><span>{f.cgstRate}%</span><span>₹{fmt(cgst)}</span></div>
+            <div className="tax-line"><span>SGST</span><span>{f.sgstRate}%</span><span>₹{fmt(sgst)}</span></div>
+            <div className="t-row grand"><span>Grand Total</span><span className="amt">₹{fmt(grandTotal)}</span></div>
+            <div className="words-row">
+              <strong>Total Amount (₹ - In Words)</strong>&nbsp;{grandTotal === 0 ? "Rupees Zero Only." : amtWords(grandTotal)}
+            </div>
+          </div>
+        </div>
+
+        {f.interestNote && <div className="note-bar"><strong>Note:</strong> {f.interestNote}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// CREDIT NOTE PREVIEW
+// ─────────────────────────────────────────────
+function CreditNotePreview({ co, f }) {
+  const { total, igst, sgst, cgst, grandTotal } =
+    calcTotals(f.items, false, "0", f.gstType, f.igstRate, f.sgstRate, f.cgstRate);
+
+  return (
+    <div className="invoice-page">
+      <div className="inv-header">
+        <div className="inv-brand">
+          <InvLogo />
+          <div>
+            <div className="inv-co-name">{co.name}</div>
+            <div className="inv-co-meta">
+              <p><strong>GSTIN</strong>{co.gstin}</p>
+              <p><strong>PAN</strong>{co.pan}</p>
+              <p><strong>CIN</strong>{co.cin}</p>
+            </div>
+          </div>
+        </div>
+        <div className="inv-addr-block">{co.address}<br /><a href={co.website}>{co.website}</a></div>
+      </div>
+
+      <div className="inv-body">
+        <div className="inv-title credit">CreditNote</div>
+
+        <div className="inv-billed-row">
+          <div><div className="fl">Billed to</div><div className="fv">{f.billedTo}</div></div>
+          <div style={{ textAlign: "right" }}><div className="fl">Date</div><div className="fv">{formatDate(f.invoiceDate)}</div></div>
+        </div>
+
+        <div className="party-grid">
+          <div>
+            <div className="pml">Party address</div>
+            <div className="pmv">{f.partyAddress}<br />{f.partyPhone}</div>
+          </div>
+          <div>
+            <div className="pml">PAN</div><div className="pmv">{f.partyPAN}</div>
+            <div className="pml">Place of supply</div><div className="pmv">{f.placeOfSupply}</div>
+          </div>
+          <div className="text-right">
+            <div className="pml">Invoice Number</div><div className="pmv">{f.invoiceNumber}</div>
+            <div className="pml">State Code</div><div className="pmv">{f.stateCode}</div>
+            <div className="pml">Against Invoice No</div><div className="pmv">{f.againstInvoice}</div>
+          </div>
+        </div>
+
+        <table className="inv-table">
+          <thead><tr><th>Description</th><th className="c">SAC Code</th><th className="r">Amount</th></tr></thead>
+          <tbody>
+            {f.items.map((item, i) => (
+              <tr key={i}>
+                <td><strong>{item.description}</strong>{item.note && <div className="desc-note">{item.note}</div>}</td>
+                <td className="c">{item.sacCode}</td>
+                <td className="r">₹ {fmt(parseFloat(item.amount) || 0)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="totals-wrap">
+          <div className="totals-block">
+            <div className="t-row sep"><span className="lbl">Total</span><span className="amt">₹ {fmt(total)}</span></div>
+            {f.gstType === "igst"
+              ? <div className="tax-line" style={{ marginTop: 8 }}><span>Add: IGST @</span><span>{f.igstRate}%</span><span>₹{fmt(igst)}</span></div>
+              : <>
+                  <div className="tax-line" style={{ marginTop: 8 }}><span>Add: CGST @</span><span>{f.cgstRate}%</span><span>₹{fmt(cgst)}</span></div>
+                  <div className="tax-line"><span>Add: SGST @</span><span>{f.sgstRate}%</span><span>₹{fmt(sgst)}</span></div>
+                </>
+            }
+            <div className="t-row grand"><span>Grand Total</span><span className="amt">₹ {fmt(grandTotal)}</span></div>
+            <div className="words-row">
+              <strong>Total Amount :</strong> {grandTotal === 0 ? "Rupees Zero only." : amtWords(grandTotal)}
+            </div>
+          </div>
+        </div>
+
+        <div className="inv-footer">{co.regNo}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// SIDEBAR — TAX INVOICE
+// ─────────────────────────────────────────────
+function TaxSidebar({ f, set, tab, setTab }) {
+  const { total, disc, netTotal, igst, sgst, cgst, grandTotal } =
+    calcTotals(f.items, f.discountEnabled, f.discount, f.gstType, f.igstRate, f.sgstRate, f.cgstRate);
+
+  const setItem = (idx, key, val) => {
+    const items = [...f.items];
+    items[idx] = { ...items[idx], [key]: val };
+    set("items", items);
+  };
+
+  return (
+    <>
+      <div className="sb-tabs">
+        {["client","items","taxes"].map(t => (
+          <button key={t} className={`sb-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
+            {t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+      <div className="sb-body">
+        {tab === "client" && (
+          <>
+            <div className="sec-title">Invoice Details</div>
+            <Field label="Invoice Number" value={f.invoiceNumber} onChange={v => set("invoiceNumber", v)} />
+            <Field label="Invoice Date" value={f.invoiceDate} onChange={v => set("invoiceDate", v)} type="date" />
+            <div className="sec-title mt">Client Details</div>
+            <Field label="Billed To" value={f.billedTo} onChange={v => set("billedTo", v)} />
+            <Field label="Party Address" value={f.partyAddress} onChange={v => set("partyAddress", v)} textarea />
+            <Field label="Phone" value={f.partyPhone} onChange={v => set("partyPhone", v)} />
+            <Field label="PAN" value={f.partyPAN} onChange={v => set("partyPAN", v)} />
+            <Toggle label="GSTIN" on={f.gstinEnabled} onToggle={() => set("gstinEnabled", !f.gstinEnabled)} />
+            {f.gstinEnabled && <Field label="GSTIN" value={f.partyGSTIN} onChange={v => set("partyGSTIN", v)} />}
+            <Field label="Place of Supply" value={f.placeOfSupply} onChange={v => set("placeOfSupply", v)} />
+            <Field label="State Code" value={f.stateCode} onChange={v => set("stateCode", v)} />
+          </>
+        )}
+        {tab === "items" && (
+          <>
+            <div className="sec-title">Line Items</div>
+            {f.items.map((item, idx) => (
+              <div className="item-card" key={idx}>
+                <div className="item-card-head">
+                  <span className="item-label">Item {idx + 1}</span>
+                  {f.items.length > 1 && <button className="remove-btn" onClick={() => set("items", f.items.filter((_,i) => i !== idx))}>✕</button>}
+                </div>
+                <Field label="Description" value={item.description} onChange={v => setItem(idx, "description", v)} />
+                <Field label="Note (optional)" value={item.note || ""} onChange={v => setItem(idx, "note", v)} textarea />
+                <Field label="SAC Code" value={item.sacCode} onChange={v => setItem(idx, "sacCode", v)} />
+                <Field label="Amount (₹)" value={item.amount} onChange={v => setItem(idx, "amount", v)} type="number" />
+              </div>
+            ))}
+            <button className="add-item-btn" onClick={() => set("items", [...f.items, { description: "", sacCode: "", amount: "", note: "" }])}>+ Add Item</button>
+          </>
+        )}
+        {tab === "taxes" && (
+          <>
+            <div className="sec-title">Discounts & Taxes</div>
+            <Toggle label="Discount" on={f.discountEnabled} onToggle={() => set("discountEnabled", !f.discountEnabled)} />
+            {f.discountEnabled && <Field label="Discount (₹)" value={f.discount} onChange={v => set("discount", v)} type="number" />}
+            <div className="field-group">
+              <label className="field-label">GST Type</label>
+              <select className="field-input" value={f.gstType} onChange={e => set("gstType", e.target.value)}>
+                <option value="sgst_cgst">SGST + CGST (Intra-state)</option>
+                <option value="igst">IGST (Inter-state)</option>
+              </select>
+            </div>
+            {f.gstType === "igst"
+              ? <Field label="IGST (%)" value={f.igstRate} onChange={v => set("igstRate", v)} type="number" />
+              : <>
+                  <Field label="SGST (%)" value={f.sgstRate} onChange={v => set("sgstRate", v)} type="number" />
+                  <Field label="CGST (%)" value={f.cgstRate} onChange={v => set("cgstRate", v)} type="number" />
+                </>
+            }
+            <div className="summary-box">
+              <SumRow label="Subtotal" value={`₹ ${fmt(total)}`} />
+              <SumRow label="Discount" value={`- ₹ ${fmt(disc)}`} />
+              <SumRow label="Net Total" value={`₹ ${fmt(netTotal)}`} />
+              {f.gstType === "igst"
+                ? <SumRow label={`IGST @ ${f.igstRate}%`} value={`₹ ${fmt(igst)}`} />
+                : <><SumRow label={`SGST @ ${f.sgstRate}%`} value={`₹ ${fmt(sgst)}`} /><SumRow label={`CGST @ ${f.cgstRate}%`} value={`₹ ${fmt(cgst)}`} /></>
+              }
+              <div className="sum-divider" />
+              <SumRow label="Grand Total" value={`₹ ${fmt(grandTotal)}`} bold />
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────
+// SIDEBAR — LOCKER INVOICE
+// ─────────────────────────────────────────────
+function LockerSidebar({ f, set, tab, setTab }) {
+  const items = [{ description: "", sacCode: f.sacCode, amount: f.amount }];
+  const { total, disc, netTotal, sgst, cgst, grandTotal } =
+    calcTotals(items, f.discountEnabled, f.discount, f.gstType, "18", f.sgstRate, f.cgstRate);
+
+  return (
+    <>
+      <div className="sb-tabs">
+        {["client","locker","taxes"].map(t => (
+          <button key={t} className={`sb-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
+            {t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+      <div className="sb-body">
+        {tab === "client" && (
+          <>
+            <div className="sec-title">Company (Branch)</div>
+            <Field label="Company Name" value={f.companyName} onChange={v => set("companyName", v)} />
+            <Field label="GSTIN" value={f.companyGSTIN} onChange={v => set("companyGSTIN", v)} />
+            <Field label="Branch Address" value={f.companyAddress} onChange={v => set("companyAddress", v)} textarea />
+            <div className="sec-title mt">Invoice Details</div>
+            <Field label="Invoice Number" value={f.invoiceNumber} onChange={v => set("invoiceNumber", v)} />
+            <Field label="Invoice Date" value={f.invoiceDate} onChange={v => set("invoiceDate", v)} type="date" />
+            <div className="sec-title mt">Client Details</div>
+            <Field label="Billed To" value={f.billedTo} onChange={v => set("billedTo", v)} />
+            <Field label="Address" value={f.partyAddress} onChange={v => set("partyAddress", v)} textarea />
+            <Field label="PAN" value={f.partyPAN} onChange={v => set("partyPAN", v)} />
+            <Field label="Place of Supply" value={f.placeOfSupply} onChange={v => set("placeOfSupply", v)} />
+            <Field label="State Code" value={f.stateCode} onChange={v => set("stateCode", v)} />
+          </>
+        )}
+        {tab === "locker" && (
+          <>
+            <div className="sec-title">Locker Details</div>
+            <Field label="Locker Number" value={f.lockerNo} onChange={v => set("lockerNo", v)} />
+            <Field label="From Date" value={f.lockerFrom} onChange={v => set("lockerFrom", v)} />
+            <Field label="To Date" value={f.lockerTo} onChange={v => set("lockerTo", v)} />
+            <Field label="SAC Code" value={f.sacCode} onChange={v => set("sacCode", v)} />
+            <Field label="Amount (₹)" value={f.amount} onChange={v => set("amount", v)} type="number" />
+            <Field label="Interest Note" value={f.interestNote} onChange={v => set("interestNote", v)} />
+          </>
+        )}
+        {tab === "taxes" && (
+          <>
+            <div className="sec-title">Discount & Taxes</div>
+            <Toggle label="Discount" on={f.discountEnabled} onToggle={() => set("discountEnabled", !f.discountEnabled)} />
+            {f.discountEnabled && <Field label="Discount (₹)" value={f.discount} onChange={v => set("discount", v)} type="number" />}
+            <Field label="SGST (%)" value={f.sgstRate} onChange={v => set("sgstRate", v)} type="number" />
+            <Field label="CGST (%)" value={f.cgstRate} onChange={v => set("cgstRate", v)} type="number" />
+            <div className="summary-box">
+              <SumRow label="Total" value={`₹ ${fmt(total)}`} />
+              <SumRow label="Discount" value={`- ₹ ${fmt(disc)}`} />
+              <SumRow label="Net Total" value={`₹ ${fmt(netTotal)}`} />
+              <SumRow label={`SGST @ ${f.sgstRate}%`} value={`₹ ${fmt(sgst)}`} />
+              <SumRow label={`CGST @ ${f.cgstRate}%`} value={`₹ ${fmt(cgst)}`} />
+              <div className="sum-divider" />
+              <SumRow label="Grand Total" value={`₹ ${fmt(grandTotal)}`} bold />
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────
+// SIDEBAR — CREDIT NOTE
+// ─────────────────────────────────────────────
+function CreditSidebar({ f, set, tab, setTab }) {
+  const { total, igst, sgst, cgst, grandTotal } =
+    calcTotals(f.items, false, "0", f.gstType, f.igstRate, f.sgstRate, f.cgstRate);
+
+  const setItem = (idx, key, val) => {
+    const items = [...f.items];
+    items[idx] = { ...items[idx], [key]: val };
+    set("items", items);
+  };
+
+  return (
+    <>
+      <div className="sb-tabs">
+        {["client","items","taxes"].map(t => (
+          <button key={t} className={`sb-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
+            {t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+      <div className="sb-body">
+        {tab === "client" && (
+          <>
+            <div className="sec-title">Invoice Details</div>
+            <Field label="Invoice Number" value={f.invoiceNumber} onChange={v => set("invoiceNumber", v)} />
+            <Field label="Invoice Date" value={f.invoiceDate} onChange={v => set("invoiceDate", v)} type="date" />
+            <Field label="Against Invoice No" value={f.againstInvoice} onChange={v => set("againstInvoice", v)} />
+            <div className="sec-title mt">Client Details</div>
+            <Field label="Billed To" value={f.billedTo} onChange={v => set("billedTo", v)} />
+            <Field label="Party Address" value={f.partyAddress} onChange={v => set("partyAddress", v)} textarea />
+            <Field label="Phone" value={f.partyPhone} onChange={v => set("partyPhone", v)} />
+            <Field label="PAN" value={f.partyPAN} onChange={v => set("partyPAN", v)} />
+            <Field label="Place of Supply" value={f.placeOfSupply} onChange={v => set("placeOfSupply", v)} />
+            <Field label="State Code" value={f.stateCode} onChange={v => set("stateCode", v)} />
+          </>
+        )}
+        {tab === "items" && (
+          <>
+            <div className="sec-title">Line Items</div>
+            {f.items.map((item, idx) => (
+              <div className="item-card" key={idx}>
+                <div className="item-card-head">
+                  <span className="item-label">Item {idx + 1}</span>
+                  {f.items.length > 1 && <button className="remove-btn" onClick={() => set("items", f.items.filter((_,i) => i !== idx))}>✕</button>}
+                </div>
+                <Field label="Description" value={item.description} onChange={v => setItem(idx, "description", v)} />
+                <Field label="SAC Code" value={item.sacCode} onChange={v => setItem(idx, "sacCode", v)} />
+                <Field label="Amount (₹)" value={item.amount} onChange={v => setItem(idx, "amount", v)} type="number" />
+              </div>
+            ))}
+            <button className="add-item-btn" onClick={() => set("items", [...f.items, { description: "", sacCode: "", amount: "", note: "" }])}>+ Add Item</button>
+          </>
+        )}
+        {tab === "taxes" && (
+          <>
+            <div className="sec-title">Taxes</div>
+            <div className="field-group">
+              <label className="field-label">GST Type</label>
+              <select className="field-input" value={f.gstType} onChange={e => set("gstType", e.target.value)}>
+                <option value="igst">IGST (Inter-state)</option>
+                <option value="sgst_cgst">SGST + CGST (Intra-state)</option>
+              </select>
+            </div>
+            {f.gstType === "igst"
+              ? <Field label="IGST (%)" value={f.igstRate} onChange={v => set("igstRate", v)} type="number" />
+              : <><Field label="SGST (%)" value={f.sgstRate} onChange={v => set("sgstRate", v)} type="number" /><Field label="CGST (%)" value={f.cgstRate} onChange={v => set("cgstRate", v)} type="number" /></>
+            }
+            <div className="summary-box">
+              <SumRow label="Total" value={`₹ ${fmt(total)}`} />
+              {f.gstType === "igst"
+                ? <SumRow label={`IGST @ ${f.igstRate}%`} value={`₹ ${fmt(igst)}`} />
+                : <><SumRow label={`SGST @ ${f.sgstRate}%`} value={`₹ ${fmt(sgst)}`} /><SumRow label={`CGST @ ${f.cgstRate}%`} value={`₹ ${fmt(cgst)}`} /></>
+              }
+              <div className="sum-divider" />
+              <SumRow label="Grand Total" value={`₹ ${fmt(grandTotal)}`} bold />
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────
+// ROOT APP
+// ─────────────────────────────────────────────
+export default function App() {
+  const [invoiceType, setInvoiceType] = useState("tax");
+  const [sideTab, setSideTab]         = useState("client");
+  const [coTab, setCoTab]             = useState(false); // company info panel
+
+  const [company,       setCompanyFull]  = useState(defaultCompany);
+  const [taxForm,       setTaxFull]      = useState(defaultTaxInvoice);
+  const [lockerForm,    setLockerFull]   = useState(defaultLockerInvoice);
+  const [creditForm,    setCreditFull]   = useState(defaultCreditNote);
+
+  const setCo  = (k, v) => setCompanyFull(p => ({ ...p, [k]: v }));
+  const setTax = (k, v) => setTaxFull(p => ({ ...p, [k]: v }));
+  const setLk  = (k, v) => setLockerFull(p => ({ ...p, [k]: v }));
+  const setCr  = (k, v) => setCreditFull(p => ({ ...p, [k]: v }));
+
+  // When invoice type changes, reset sidebar tab
+  const switchType = (t) => { setInvoiceType(t); setSideTab("client"); setCoTab(false); };
+
+  return (
+    <div className="app-root">
+      {/* ═══ SIDEBAR ═══ */}
+      <aside className="sidebar">
+        {/* Header */}
+        <div className="sb-head">
+          <div className="sb-logo-box">1</div>
+          <div>
+            <div className="sb-brand">1Finance</div>
+            <div className="sb-sub">Invoice Generator</div>
+          </div>
+        </div>
+
+        {/* Invoice type switcher */}
+        <div className="sb-type-bar">
+          <button className={`type-btn${invoiceType === "tax" ? " active" : ""}`} onClick={() => switchType("tax")}>Tax</button>
+          <button className={`type-btn${invoiceType === "locker" ? " active" : ""}`} onClick={() => switchType("locker")}>Locker</button>
+          <button className={`type-btn${invoiceType === "credit" ? " active" : ""}`} onClick={() => switchType("credit")}>Credit Note</button>
+        </div>
+
+        {/* Company info toggle */}
+        <div style={{ borderBottom: "1px solid var(--gray-pale)", flexShrink: 0 }}>
+          <button
+            style={{ width: "100%", padding: "8px 18px", background: coTab ? "#f4f4f4" : "none", border: "none", textAlign: "left", fontSize: 10, fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--gray-mid)", cursor: "pointer" }}
+            onClick={() => setCoTab(p => !p)}
+          >
+            {coTab ? "▲" : "▼"} &nbsp; Company Info
+          </button>
+          {coTab && (
+            <div className="sb-body" style={{ maxHeight: 320, flex: "none" }}>
+              <Field label="Company Name" value={company.name} onChange={v => setCo("name", v)} />
+              <Field label="GSTIN" value={company.gstin} onChange={v => setCo("gstin", v)} />
+              <Field label="PAN" value={company.pan} onChange={v => setCo("pan", v)} />
+              <Field label="CIN" value={company.cin} onChange={v => setCo("cin", v)} />
+              <Field label="Address" value={company.address} onChange={v => setCo("address", v)} textarea />
+              <Field label="Website" value={company.website} onChange={v => setCo("website", v)} />
+              <Field label="Reg. No." value={company.regNo} onChange={v => setCo("regNo", v)} />
+            </div>
+          )}
+        </div>
+
+        {/* Per-type sidebar */}
+        {invoiceType === "tax"    && <TaxSidebar    f={taxForm}    set={setTax} tab={sideTab} setTab={setSideTab} />}
+        {invoiceType === "locker" && <LockerSidebar f={lockerForm} set={setLk}  tab={sideTab} setTab={setSideTab} />}
+        {invoiceType === "credit" && <CreditSidebar f={creditForm} set={setCr}  tab={sideTab} setTab={setSideTab} />}
+
+        {/* Print */}
+        <div className="sb-foot">
+          <button className="print-btn" onClick={() => window.print()}>🖨 Print / Download PDF</button>
+        </div>
+      </aside>
+
+      {/* ═══ PREVIEW ═══ */}
+      <main className="preview-area">
+        <div className="preview-bar">
+          <span className="preview-bar-label">Live Preview</span>
+          <span className="preview-bar-hint">Changes reflect instantly</span>
+        </div>
+        <div className="invoice-scroll">
+          {invoiceType === "tax"    && <TaxInvoicePreview    co={company} f={taxForm} />}
+          {invoiceType === "locker" && <LockerInvoicePreview co={company} f={lockerForm} />}
+          {invoiceType === "credit" && <CreditNotePreview    co={company} f={creditForm} />}
+        </div>
+      </main>
     </div>
   );
 }
