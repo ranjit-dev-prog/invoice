@@ -64,13 +64,13 @@ const defaultCompany = {
 const defaultTaxInvoice = {
   invoiceNumber:  "1F/26-27/183",
   invoiceDate:    "2026-05-06",
-  billedTo:       "MEGHANA SRINIVAS KULKARNI",
-  partyAddress:   "A 701 GOLDEN PETALS KARVE NGR NR, TREE HOUSE HIGHSCHL KOTHRUD CITY, NEAR TREE HOUSE HIGHSCHOOL PUNE 411052",
-  partyPhone:     "+91 9405438320",
-  partyPAN:       "ABKPK8842M",
+  billedTo:       "DEMO NAME",
+  partyAddress:   "DEMO ADDRESS",
+  partyPhone:     "+91 XXXXXXXXXX",
+  partyPAN:       "XXXXXXXXXX",
   partyGSTIN:     "",
   gstinEnabled:   false,
-  placeOfSupply:  "Maharashtra",
+  placeOfSupply:  "MAHARASHTRA",
   stateCode:      "27",
   items: [
     { description: "Advisory Fees", sacCode: "997156", amount: "75000.00",
@@ -114,12 +114,12 @@ const defaultLockerInvoice = {
 const defaultCreditNote = {
   invoiceNumber:  "1F/26-27/CN/4",
   invoiceDate:    "2026-05-26",
-  billedTo:       "GOURI SHANKAR BEHERA",
-  partyAddress:   "KAMALAKANTA BEHERA, BAISHINGA, MAYURBHANJ, , ODISHA, , INDIA , BAISHINGA , Odisha , 757028",
-  partyPhone:     "+91 8305027096",
-  partyPAN:       "BJDPB3336D",
-  placeOfSupply:  "ODISHA",
-  stateCode:      "21",
+  billedTo:       "DEMO NAME",
+  partyAddress:   "DEMO ADDRESS",
+  partyPhone:     "+91 XXXXXXXXXX",
+  partyPAN:       "XXXXXXXXXX",
+  placeOfSupply:  "MAHARASHTRA",
+  stateCode:      "27",
   againstInvoice: "1F/26-27/169",
   items: [
     { description: "Advisory Fees", sacCode: "997156", amount: "5000.00", note: "" }
@@ -171,32 +171,66 @@ function InvLogo() {
   );
 }
 
+function InvHeader({ co, branch }) {
+  const name = (branch && (branch.companyName || branch.name)) || co.name;
+  const gstin = (branch && branch.companyGSTIN) || co.gstin;
+  const pan = co.pan;
+  const cin = co.cin;
+  const address = (branch && branch.companyAddress) || co.address;
+  const website = co.website;
+
+  return (
+    <div className="inv-header">
+      <div className="inv-brand">
+        <InvLogo />
+        <div>
+          <div className="inv-co-name">{name}</div>
+          <div className="inv-co-meta">
+            <p><strong>GSTIN</strong>{gstin}</p>
+            <p><strong>PAN</strong>{pan}</p>
+            <p><strong>CIN</strong>{cin}</p>
+          </div>
+        </div>
+      </div>
+      <div className="inv-addr-block">
+        {address}
+        {website && <><br /><a href={website}>{website}</a></>}
+      </div>
+    </div>
+  );
+}
+
+function TotalsBlock({ totals, f, showWords = true }) {
+  const { total, disc, netTotal, igst, sgst, cgst, grandTotal } = totals;
+  return (
+    <div className="totals-wrap">
+      <div className="totals-block">
+        <div className="t-row sep"><span className="lbl">Total</span><span className="amt">₹ {fmt(total)}</span></div>
+        {f.discountEnabled && <div className="t-row"><span className="lbl">Discount</span><span className="amt">- ₹ {fmt(disc)}</span></div>}
+        <div className="t-row head"><span>Net Total</span><span>₹ {fmt(netTotal)}</span></div>
+        {f.gstType === "igst"
+          ? <div className="tax-line"><span>Add: IGST @</span><span>{f.igstRate}%</span><span>₹ {fmt(igst)}</span></div>
+          : <>
+              <div className="tax-line"><span>Add: CGST @</span><span>{f.cgstRate}%</span><span>₹ {fmt(cgst)}</span></div>
+              <div className="tax-line"><span>Add: SGST @</span><span>{f.sgstRate}%</span><span>₹ {fmt(sgst)}</span></div>
+            </>
+        }
+        <div className="t-row grand"><span>Grand Total</span><span className="amt">₹ {fmt(grandTotal)}</span></div>
+        {showWords && <div className="words-row"><strong>Total Amount (₹ - In Words):</strong> {grandTotal === 0 ? "Rupees Zero only." : amtWords(grandTotal)}</div>}
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────
 // TAX INVOICE PREVIEW
 // ─────────────────────────────────────────────
 function TaxInvoicePreview({ co, f }) {
   const { total, disc, netTotal, igst, sgst, cgst, grandTotal } =
     calcTotals(f.items, f.discountEnabled, f.discount, f.gstType, f.igstRate, f.sgstRate, f.cgstRate);
-
   return (
     <div className="invoice-page">
-      <div className="inv-header">
-        <div className="inv-brand">
-          <InvLogo />
-          <div>
-            <div className="inv-co-name">{co.name}</div>
-            <div className="inv-co-meta">
-              <p><strong>GSTIN</strong>{co.gstin}</p>
-              <p><strong>PAN</strong>{co.pan}</p>
-              <p><strong>CIN</strong>{co.cin}</p>
-            </div>
-          </div>
-        </div>
-        <div className="inv-addr-block">
-          {co.address}<br />
-          <a href={co.website}>{co.website}</a>
-        </div>
-      </div>
+      <InvHeader co={co} />
 
       <div className="inv-body">
         <div className="inv-title">Tax Invoice</div>
@@ -241,24 +275,7 @@ function TaxInvoicePreview({ co, f }) {
           </tbody>
         </table>
 
-        <div className="totals-wrap">
-          <div className="totals-block">
-            <div className="t-row sep"><span className="lbl">Total</span><span className="amt">₹ {fmt(total)}</span></div>
-            {f.discountEnabled && <div className="t-row"><span className="lbl">Discount</span><span className="amt">- ₹ {fmt(disc)}</span></div>}
-            <div className="t-row head"><span>Net Total</span><span>₹ {fmt(netTotal)}</span></div>
-            {f.gstType === "igst"
-              ? <div className="tax-line"><span>Add: IGST @</span><span>{f.igstRate}%</span><span>₹ {fmt(igst)}</span></div>
-              : <>
-                  <div className="tax-line"><span>Add: CGST @</span><span>{f.cgstRate}%</span><span>{fmt(cgst)}</span></div>
-                  <div className="tax-line"><span>Add: SGST @</span><span>{f.sgstRate}%</span><span>{fmt(sgst)}</span></div>
-                </>
-            }
-            <div className="t-row grand"><span>Grand Total</span><span className="amt">₹ {fmt(grandTotal)}</span></div>
-            <div className="words-row">
-              <strong>Total Amount (₹ - In Words):</strong> {grandTotal === 0 ? "Rupees Zero only." : amtWords(grandTotal)}
-            </div>
-          </div>
-        </div>
+        <TotalsBlock totals={{ total, disc, netTotal, igst, sgst, cgst, grandTotal }} f={f} />
 
         <div className="inv-footer">{co.regNo}</div>
       </div>
@@ -273,23 +290,9 @@ function LockerInvoicePreview({ co, f }) {
   const items = [{ description: `Locker Charges (Locker No:-${f.lockerNo})`, sacCode: f.sacCode, amount: f.amount, note: `(From ${f.lockerFrom} to ${f.lockerTo})` }];
   const { total, disc, netTotal, sgst, cgst, grandTotal } =
     calcTotals(items, f.discountEnabled, f.discount, f.gstType, "18", f.sgstRate, f.cgstRate);
-
   return (
     <div className="invoice-page">
-      <div className="inv-header">
-        <div className="inv-brand">
-          <InvLogo />
-          <div>
-            <div className="inv-co-name">{f.companyName || co.name}</div>
-            <div className="inv-co-meta">
-              <p><strong>GSTIN</strong>{f.companyGSTIN || co.gstin}</p>
-              <p><strong>PAN</strong>{co.pan}</p>
-              <p><strong>CIN</strong>{co.cin}</p>
-            </div>
-          </div>
-        </div>
-        <div className="inv-addr-block">{f.companyAddress || co.address}</div>
-      </div>
+      <InvHeader co={co} branch={f} />
 
       <div className="inv-body">
         <div className="inv-title">Tax Invoice</div>
@@ -325,19 +328,7 @@ function LockerInvoicePreview({ co, f }) {
           </tbody>
         </table>
 
-        <div className="totals-wrap">
-          <div className="totals-block">
-            <div className="t-row sep" style={{ fontSize: 14, fontWeight: 600 }}><span>Total</span><span>₹{fmt(total)}</span></div>
-            {f.discountEnabled && <div className="t-row"><span className="lbl">Discount</span><span className="amt">-₹{fmt(disc)}</span></div>}
-            <div className="t-row"><span className="lbl">Net Total</span><span className="amt">{fmt(netTotal)}</span></div>
-            <div className="tax-line"><span>CGST</span><span>{f.cgstRate}%</span><span>₹{fmt(cgst)}</span></div>
-            <div className="tax-line"><span>SGST</span><span>{f.sgstRate}%</span><span>₹{fmt(sgst)}</span></div>
-            <div className="t-row grand"><span>Grand Total</span><span className="amt">₹{fmt(grandTotal)}</span></div>
-            <div className="words-row">
-              <strong>Total Amount (₹ - In Words)</strong>&nbsp;{grandTotal === 0 ? "Rupees Zero Only." : amtWords(grandTotal)}
-            </div>
-          </div>
-        </div>
+        <TotalsBlock totals={{ total, disc, netTotal, igst: 0, sgst, cgst, grandTotal }} f={f} />
 
         {f.interestNote && <div className="note-bar"><strong>Note:</strong> {f.interestNote}</div>}
       </div>
@@ -351,26 +342,12 @@ function LockerInvoicePreview({ co, f }) {
 function CreditNotePreview({ co, f }) {
   const { total, igst, sgst, cgst, grandTotal } =
     calcTotals(f.items, false, "0", f.gstType, f.igstRate, f.sgstRate, f.cgstRate);
-
   return (
     <div className="invoice-page">
-      <div className="inv-header">
-        <div className="inv-brand">
-          <InvLogo />
-          <div>
-            <div className="inv-co-name">{co.name}</div>
-            <div className="inv-co-meta">
-              <p><strong>GSTIN</strong>{co.gstin}</p>
-              <p><strong>PAN</strong>{co.pan}</p>
-              <p><strong>CIN</strong>{co.cin}</p>
-            </div>
-          </div>
-        </div>
-        <div className="inv-addr-block">{co.address}<br /><a href={co.website}>{co.website}</a></div>
-      </div>
+      <InvHeader co={co} />
 
       <div className="inv-body">
-        <div className="inv-title credit">CreditNote</div>
+        <div className="inv-title credit">Credit Note</div>
 
         <div className="inv-billed-row">
           <div><div className="fl">Billed to</div><div className="fv">{f.billedTo}</div></div>
@@ -406,22 +383,7 @@ function CreditNotePreview({ co, f }) {
           </tbody>
         </table>
 
-        <div className="totals-wrap">
-          <div className="totals-block">
-            <div className="t-row sep"><span className="lbl">Total</span><span className="amt">₹ {fmt(total)}</span></div>
-            {f.gstType === "igst"
-              ? <div className="tax-line" style={{ marginTop: 8 }}><span>Add: IGST @</span><span>{f.igstRate}%</span><span>₹{fmt(igst)}</span></div>
-              : <>
-                  <div className="tax-line" style={{ marginTop: 8 }}><span>Add: CGST @</span><span>{f.cgstRate}%</span><span>₹{fmt(cgst)}</span></div>
-                  <div className="tax-line"><span>Add: SGST @</span><span>{f.sgstRate}%</span><span>₹{fmt(sgst)}</span></div>
-                </>
-            }
-            <div className="t-row grand"><span>Grand Total</span><span className="amt">₹ {fmt(grandTotal)}</span></div>
-            <div className="words-row">
-              <strong>Total Amount :</strong> {grandTotal === 0 ? "Rupees Zero only." : amtWords(grandTotal)}
-            </div>
-          </div>
-        </div>
+        <TotalsBlock totals={{ total, disc: 0, netTotal: total, igst, sgst, cgst, grandTotal }} f={f} />
 
         <div className="inv-footer">{co.regNo}</div>
       </div>
