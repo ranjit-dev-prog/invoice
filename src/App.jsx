@@ -16,7 +16,7 @@ function calcTotals(items, discountEnabled, discount, gstType, igstRate, sgstRat
   const netTotal = Math.max(total - disc, 0);
   let igst = 0, sgst = 0, cgst = 0;
   if (gstType === "igst") {
-    igst = netTotal * ((parseFloat(igstRate) || 0) / 100);
+    igst = netTotal * ((parseFloat( igstRate) || 0) / 100);
   } else {
     sgst = netTotal * ((parseFloat(sgstRate) || 0) / 100);
     cgst = netTotal * ((parseFloat(cgstRate) || 0) / 100);
